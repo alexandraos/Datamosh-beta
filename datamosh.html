@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Datamosh Studio</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --neon-green: #00ff41;
+            --neon-red: #ff0055;
+            --dark-bg: #050505;
+            --panel-bg: #111111;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--neon-green);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Glitch Text Effect */
+        .glitch-text {
+            position: relative;
+            animation: glitch-skew 1s infinite linear alternate-reverse;
+        }
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .glitch-text::before {
+            left: 2px;
+            text-shadow: -1px 0 var(--neon-red);
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+        .glitch-text::after {
+            left: -2px;
+            text-shadow: -1px 0 #00ffff;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim2 5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(12px, 9999px, 5px, 0); }
+            5% { clip: rect(34px, 9999px, 1px, 0); }
+            100% { clip: rect(1px, 9999px, 89px, 0); }
+        }
+        @keyframes glitch-anim2 {
+            0% { clip: rect(82px, 9999px, 25px, 0); }
+            5% { clip: rect(14px, 9999px, 61px, 0); }
+            100% { clip: rect(51px, 9999px, 19px, 0); }
+        }
+
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            margin: 10px 0;
+        }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border: 1px solid var(--neon-green);
+            box-shadow: 0 0 5px var(--neon-green);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 20px;
+            width: 12px;
+            background: var(--neon-green);
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -8px;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        /* CRT Scanline Effect */
+        .scanlines {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+
+        /* Hide Scrollbar */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+
+        canvas {
+            image-rendering: pixelated; /* Essential for the crunch look */
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="p-4 border-b border-green-900 bg-black flex justify-between items-center z-20">
+        <div class="flex items-center gap-2">
+            <i data-lucide="zap" class="text-green-500 w-6 h-6"></i>
+            <h1 class="text-2xl font-bold tracking-tighter glitch-text" data-text="DATAMOSH">DATAMOSH</h1>
+        </div>
+        <div class="flex gap-2">
+            <button id="helpBtn" class="p-2 border border-green-900 hover:bg-green-900/30 rounded text-xs">GUIDE</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        
+        <!-- Canvas Container -->
+        <div class="flex-1 relative flex items-center justify-center bg-gray-900 overflow-hidden">
+            <!-- Hidden Video Sources -->
+            <video id="sourceA" class="hidden" loop muted playsinline crossorigin="anonymous"></video>
+            <video id="sourceB" class="hidden" loop muted playsinline crossorigin="anonymous"></video>
+            
+            <!-- Output Canvas -->
+            <canvas id="moshCanvas" class="w-full max-w-4xl h-auto aspect-video border-2 border-green-900/50 shadow-[0_0_20px_rgba(0,255,65,0.1)] bg-black"></canvas>
+            
+            <!-- Overlay CRT Lines -->
+            <div class="absolute inset-0 scanlines pointer-events-none opacity-30"></div>
+
+            <!-- Loading/Start State -->
+            <div id="placeholderState" class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10 backdrop-blur-sm p-6 text-center">
+                <i data-lucide="upload-cloud" class="w-16 h-16 text-green-500 mb-4 animate-pulse"></i>
+                <h2 class="text-xl mb-2">Initialize Sequence</h2>
+                <p class="text-gray-400 text-sm max-w-md mb-6">Upload a primary video to begin datamoshing. Add a second video for blend effects.</p>
+                <label class="cursor-pointer bg-green-600 hover:bg-green-500 text-black font-bold py-3 px-8 rounded-none border border-green-400 shadow-[4px_4px_0px_#003300] active:translate-y-1 active:shadow-none transition-all">
+                    UPLOAD SOURCE A
+                    <input type="file" id="uploadA" accept="video/*" class="hidden">
+                </label>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="bg-black/90 border-t border-green-900 p-4 z-20 max-h-[45vh] overflow-y-auto backdrop-blur-md">
+            
+            <!-- Top Bar: Playback & Mode -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                
+                <!-- Play/Pause -->
+                <button id="playBtn" class="p-3 bg-gray-800 border border-green-700 rounded-full hover:bg-green-900 transition-colors" disabled>
+                    <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                </button>
+
+                <!-- Mode Selector -->
+                <div class="flex-1 min-w-[150px]">
+                    <select id="modeSelect" class="w-full bg-black text-green-500 border border-green-700 p-2 font-mono uppercase focus:outline-none focus:border-green-400 rounded-sm">
+                        <option value="smear">MODE: I-FRAME KILL (SMEAR)</option>
+                        <option value="transfer">MODE: MOTION TRANSFER (A→B)</option>
+                        <option value="difference">MODE: DIFF GLITCH</option>
+                        <option value="sort">MODE: PIXEL DRAG</option>
+                    </select>
+                </div>
+
+                <!-- Secondary Upload (Mini) -->
+                <label id="bLabel" class="cursor-pointer p-2 border border-dashed border-green-700 hover:bg-green-900/30 rounded text-center min-w-[100px] transition-all" title="Upload 2nd Video">
+                    <span class="text-xs block text-gray-400">ADD SRC B</span>
+                    <i id="bIcon" data-lucide="plus" class="w-4 h-4 mx-auto mt-1"></i>
+                    <input type="file" id="uploadB" accept="video/*" class="hidden">
+                </label>
+            </div>
+
+            <!-- Dynamic Sliders -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Param 1 -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span id="label1" class="uppercase text-green-400">Threshold (Stickiness)</span>
+                        <span id="val1" class="text-gray-400">50</span>
+                    </div>
+                    <input type="range" id="param1" min="1" max="100" value="15">
+                </div>
+
+                <!-- Param 2 -->
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span id="label2" class="uppercase text-green-400">Feedback (Decay)</span>
+                        <span id="val2" class="text-gray-400">0</span>
+                    </div>
+                    <input type="range" id="param2" min="0" max="100" value="0">
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="flex gap-3">
+                <button id="recordBtn" class="flex-1 py-3 bg-red-900/20 border border-red-800 text-red-500 hover:bg-red-900/40 uppercase font-bold tracking-wider rounded-sm flex items-center justify-center gap-2 transition-all" disabled>
+                    <div id="recDot" class="w-3 h-3 rounded-full bg-red-600"></div>
+                    <span id="recText">REC OUTPUT</span>
+                </button>
+                <button id="snapBtn" class="px-4 border border-green-700 hover:bg-green-900/30 text-green-500 rounded-sm" disabled>
+                    <i data-lucide="camera" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script>
+        // --- Init Lucide Icons ---
+        lucide.createIcons();
+
+        // --- Core Elements ---
+        const videoA = document.getElementById('sourceA');
+        const videoB = document.getElementById('sourceB');
+        const canvas = document.getElementById('moshCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // --- UI Elements ---
+        const uploadA = document.getElementById('uploadA');
+        const uploadB = document.getElementById('uploadB');
+        const bLabel = document.getElementById('bLabel');
+        const bIcon = document.getElementById('bIcon');
+        const playBtn = document.getElementById('playBtn');
+        const modeSelect = document.getElementById('modeSelect');
+        const param1 = document.getElementById('param1');
+        const param2 = document.getElementById('param2');
+        const label1 = document.getElementById('label1');
+        const label2 = document.getElementById('label2');
+        const val1 = document.getElementById('val1');
+        const val2 = document.getElementById('val2');
+        const placeholderState = document.getElementById('placeholderState');
+        const recordBtn = document.getElementById('recordBtn');
+        const snapBtn = document.getElementById('snapBtn');
+        const recDot = document.getElementById('recDot');
+        const recText = document.getElementById('recText');
+
+        // --- State ---
+        let isPlaying = false;
+        let animationId;
+        let currentMode = 'smear';
+        let processingWidth = 640; // Internal resolution (lower = faster + crunchier)
+        let processingHeight = 360;
+        let previousFrameData = null; // Buffer for motion comparison
+        let mediaRecorder;
+        let recordedChunks = [];
+        let isRecording = false;
+
+        // --- Configuration per Mode ---
+        const modes = {
+            'smear': {
+                label1: 'Mosh Threshold (Stickiness)',
+                label2: 'Color Crush (Bitrot)',
+                desc: "Classic Datamosh. High threshold makes pixels stick. Low makes them ghost."
+            },
+            'transfer': {
+                label1: 'Motion Sensitivity',
+                label2: 'Blend Strength',
+                desc: "Uses Video A's motion to paint Video B's pixels."
+            },
+            'difference': {
+                label1: 'Edge Threshold',
+                label2: 'Ghost Opacity',
+                desc: "Highlights changes between frames. Good for glitchy outlines."
+            },
+            'sort': {
+                label1: 'Drift Speed',
+                label2: 'Sort Threshold',
+                desc: "Pixels drift based on their brightness."
+            }
+        };
+
+        // --- Initialization ---
+        function initCanvas() {
+            canvas.width = processingWidth;
+            canvas.height = processingHeight;
+            // Fill with black initially
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        initCanvas();
+
+        // --- File Handling ---
+        function handleVideoUpload(file, videoElement, isPrimary = false) {
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            videoElement.src = url;
+            videoElement.load();
+            
+            videoElement.onloadeddata = () => {
+                if (isPrimary) {
+                    // Adjust aspect ratio based on video A
+                    const aspect = videoElement.videoWidth / videoElement.videoHeight;
+                    processingHeight = processingWidth / aspect;
+                    canvas.width = processingWidth;
+                    canvas.height = processingHeight;
+                    
+                    placeholderState.classList.add('hidden');
+                    enableControls();
+                    startLoop();
+                } else {
+                    // Fix for Source B: UI Feedback and Auto-Play sync
+                    bLabel.classList.remove('border-green-700', 'border-dashed');
+                    bLabel.classList.add('bg-green-600', 'text-black', 'border-solid', 'border-green-500');
+                    bLabel.querySelector('span').textContent = "SRC B READY";
+                    bIcon.setAttribute('data-lucide', 'check');
+                    lucide.createIcons();
+
+                    // If main loop is running, ensure B plays too
+                    if(isPlaying) {
+                        videoElement.play();
+                    }
+                }
+            };
+        }
+
+        uploadA.addEventListener('change', (e) => handleVideoUpload(e.target.files[0], videoA, true));
+        uploadB.addEventListener('change', (e) => handleVideoUpload(e.target.files[0], videoB, false));
+
+        function enableControls() {
+            playBtn.disabled = false;
+            recordBtn.disabled = false;
+            snapBtn.disabled = false;
+            playBtn.innerHTML = '<i data-lucide="pause" class="w-6 h-6 fill-current"></i>';
+            lucide.createIcons();
+            
+            videoA.play();
+            // Try playing B if it exists
+            if(videoB.readyState >= 2) videoB.play();
+            
+            isPlaying = true;
+        }
+
+        // --- Playback Controls ---
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                videoA.pause();
+                if(videoB.src && videoB.readyState >= 2) videoB.pause();
+                playBtn.innerHTML = '<i data-lucide="play" class="w-6 h-6 fill-current"></i>';
+                cancelAnimationFrame(animationId);
+            } else {
+                videoA.play();
+                if(videoB.src && videoB.readyState >= 2) videoB.play();
+                playBtn.innerHTML = '<i data-lucide="pause" class="w-6 h-6 fill-current"></i>';
+                loop();
+            }
+            lucide.createIcons();
+            isPlaying = !isPlaying;
+        });
+
+        // --- UI Updates ---
+        modeSelect.addEventListener('change', (e) => {
+            currentMode = e.target.value;
+            updateLabels();
+            // Reset buffer on mode change
+            previousFrameData = null;
+        });
+
+        function updateLabels() {
+            const m = modes[currentMode];
+            label1.textContent = m.label1;
+            label2.textContent = m.label2;
+        }
+
+        [param1, param2].forEach(p => {
+            p.addEventListener('input', () => {
+                val1.textContent = param1.value;
+                val2.textContent = param2.value;
+            });
+        });
+
+        // --- Core Engine: The Pixel Loop ---
+        function loop() {
+            if (!isPlaying) return;
+            processFrame();
+            animationId = requestAnimationFrame(loop);
+        }
+
+        function startLoop() {
+            if(animationId) cancelAnimationFrame(animationId);
+            loop();
+        }
+
+        // --- EFFECT ALGORITHMS ---
+
+        function processFrame() {
+            // Safety check
+            if (videoA.readyState < 2) return;
+
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // 1. Get Current Frame Data from Source A
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            tempCtx.drawImage(videoA, 0, 0, w, h);
+            const frameA = tempCtx.getImageData(0, 0, w, h);
+
+            // Get Frame B if exists (Ensure it's actually loaded)
+            let frameB = null;
+            if (videoB.readyState >= 2 && !videoB.paused) {
+                tempCtx.drawImage(videoB, 0, 0, w, h);
+                frameB = tempCtx.getImageData(0, 0, w, h);
+            } else if (videoB.readyState >= 2 && isPlaying) {
+                // Force play catchup if engine is running but B is paused
+                videoB.play();
+                tempCtx.drawImage(videoB, 0, 0, w, h);
+                frameB = tempCtx.getImageData(0, 0, w, h);
+            }
+
+            // 2. Get Previous Canvas State (The "History")
+            if (!previousFrameData) {
+                ctx.putImageData(frameA, 0, 0);
+                previousFrameData = ctx.getImageData(0, 0, w, h);
+                return;
+            }
+
+            const currentCanvasData = ctx.getImageData(0, 0, w, h);
+            const output = ctx.createImageData(w, h); 
+            
+            // Parameters
+            const p1 = parseInt(param1.value); 
+            const p2 = parseInt(param2.value); 
+            
+            const dataA = frameA.data;
+            const dataPrev = previousFrameData.data; 
+            const dataCanvas = currentCanvasData.data; 
+            const dest = output.data;
+
+            // --- ALGORITHM SWITCHER ---
+
+            if (currentMode === 'smear') {
+                // *** I-FRAME KILL (SMEAR) ***
+                const threshold = p1 * 1.5; 
+                const crush = p2; 
+
+                for (let i = 0; i < dataA.length; i += 4) {
+                    const diff = Math.abs(dataA[i] - dataPrev[i]) + 
+                                 Math.abs(dataA[i+1] - dataPrev[i+1]) + 
+                                 Math.abs(dataA[i+2] - dataPrev[i+2]);
+
+                    if (diff > threshold) {
+                        dest[i] = dataA[i];
+                        dest[i+1] = dataA[i+1];
+                        dest[i+2] = dataA[i+2];
+                        dest[i+3] = 255;
+                    } else {
+                        // Sticky persistence
+                        if (crush > 0 && Math.random() * 100 < 5) {
+                            dest[i] = dataCanvas[i] + (Math.random() - 0.5) * crush;
+                            dest[i+1] = dataCanvas[i+1] + (Math.random() - 0.5) * crush;
+                            dest[i+2] = dataCanvas[i+2] + (Math.random() - 0.5) * crush;
+                        } else {
+                            dest[i] = dataCanvas[i];
+                            dest[i+1] = dataCanvas[i+1];
+                            dest[i+2] = dataCanvas[i+2];
+                        }
+                        dest[i+3] = 255;
+                    }
+                }
+
+            } else if (currentMode === 'transfer') {
+                // *** MOTION TRANSFER ***
+                // Fallback to A if B is missing
+                const source2 = frameB ? frameB.data : dataA;
+                const sensitivity = (100 - p1) * 3; 
+
+                for (let i = 0; i < dataA.length; i += 4) {
+                     const diff = Math.abs(dataA[i] - dataPrev[i]) + 
+                                 Math.abs(dataA[i+1] - dataPrev[i+1]) + 
+                                 Math.abs(dataA[i+2] - dataPrev[i+2]);
+
+                    if (diff > sensitivity) {
+                        dest[i] = source2[i];
+                        dest[i+1] = source2[i+1];
+                        dest[i+2] = source2[i+2];
+                    } else {
+                        dest[i] = dataCanvas[i]; 
+                        dest[i+1] = dataCanvas[i+1];
+                        dest[i+2] = dataCanvas[i+2];
+                    }
+                    dest[i+3] = 255;
+                }
+
+            } else if (currentMode === 'difference') {
+                 // *** DIFFERENCE GLITCH ***
+                 const thresh = p1;
+                 
+                 for (let i = 0; i < dataA.length; i += 4) {
+                    const rD = Math.abs(dataA[i] - dataPrev[i]);
+                    const gD = Math.abs(dataA[i+1] - dataPrev[i+1]);
+                    const bD = Math.abs(dataA[i+2] - dataPrev[i+2]);
+
+                    if ((rD+gD+bD) > thresh) {
+                        dest[i] = dataA[i];
+                        dest[i+1] = dataA[i+1];
+                        dest[i+2] = dataA[i+2];
+                    } else {
+                        dest[i] = dataCanvas[i] - 1; 
+                        dest[i+1] = dataCanvas[i+1] - 5; 
+                        dest[i+2] = dataCanvas[i+2] - 1; 
+                    }
+                    dest[i+3] = 255;
+                 }
+            } else if (currentMode === 'sort') {
+                // *** PIXEL DRAG / SORT ***
+                const drift = Math.floor(p1 / 5); 
+                const brightThresh = p2 * 2.55;
+                
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        const idx = (y * w + x) * 4;
+                        const bright = (dataA[idx] + dataA[idx+1] + dataA[idx+2]) / 3;
+
+                        if (bright > brightThresh) {
+                            const offY = Math.max(0, y - drift);
+                            const offIdx = (offY * w + x) * 4;
+                            
+                            dest[idx] = dataCanvas[offIdx];
+                            dest[idx+1] = dataCanvas[offIdx+1];
+                            dest[idx+2] = dataCanvas[offIdx+2];
+                        } else {
+                            dest[idx] = dataA[idx];
+                            dest[idx+1] = dataA[idx+1];
+                            dest[idx+2] = dataA[idx+2];
+                        }
+                        dest[idx+3] = 255;
+                    }
+                }
+            }
+
+            // 3. Render
+            ctx.putImageData(output, 0, 0);
+
+            // 4. Update History
+            previousFrameData = frameA; 
+        }
+
+        // --- Recording Logic ---
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        function startRecording() {
+            const stream = canvas.captureStream(30);
+            const options = { mimeType: 'video/webm;codecs=vp9' };
+            
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'video/webm'; 
+                if(!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options.mimeType = 'video/mp4'; 
+                }
+            }
+
+            try {
+                mediaRecorder = new MediaRecorder(stream, options);
+            } catch (e) {
+                alert("Recorder not supported on this browser/device.");
+                return;
+            }
+
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = exportVideo;
+
+            mediaRecorder.start();
+            isRecording = true;
+            
+            // UI Update
+            recordBtn.classList.remove('text-red-500', 'bg-red-900/20');
+            recordBtn.classList.add('bg-red-600', 'text-white');
+            recDot.classList.add('animate-ping', 'bg-white');
+            recText.textContent = "STOP REC";
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            // UI Update
+            recordBtn.classList.add('text-red-500', 'bg-red-900/20');
+            recordBtn.classList.remove('bg-red-600', 'text-white');
+            recDot.classList.remove('animate-ping', 'bg-white');
+            recText.textContent = "REC OUTPUT";
+        }
+
+        function exportVideo() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,"");
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `datamosh_${timestamp}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            const btnText = recordBtn.innerHTML;
+            recordBtn.innerHTML = "SAVED!";
+            setTimeout(() => {
+                recordBtn.innerHTML = `
+                    <div id="recDot" class="w-3 h-3 rounded-full bg-red-600"></div>
+                    <span id="recText">REC OUTPUT</span>
+                `;
+            }, 2000);
+        }
+
+        // --- Snapshot Logic ---
+        snapBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'datamosh_snap.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+
+        // --- Help Modal Logic ---
+        document.getElementById('helpBtn').addEventListener('click', () => {
+            alert("GUIDE:\n1. Upload a video (Source A).\n2. Upload Source B for blend effects.\n3. Mode 'Smear' = Classic I-Frame Kill.\n4. Mode 'Transfer' = Use Source A's motion to paint Source B.\n5. Adjust sliders to break the codec.");
+        });
+
+    </script>
+</body>
+</html>
+
+
