@@ -127,6 +127,15 @@
             background-color: rgba(0, 255, 65, 0.1);
             border-color: var(--neon-green);
         }
+
+        /* Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -138,9 +147,42 @@
             <h1 class="text-2xl font-bold tracking-tighter glitch-text" data-text="DATAMOSH">DATAMOSH</h1>
         </div>
         <div class="flex gap-2">
-            <button id="helpBtn" class="p-2 border border-green-900 hover:bg-green-900/30 rounded text-xs">GUIDE</button>
+            <button id="helpBtn" class="p-2 border border-green-900 hover:bg-green-900/30 rounded text-xs transition-colors">GUIDE</button>
         </div>
     </header>
+
+    <!-- Guide Overlay -->
+    <div id="guideOverlay" class="hidden fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-pointer" onclick="this.classList.add('hidden')">
+        <div class="max-w-md w-full border border-green-900 bg-gray-900/80 p-6 rounded-lg backdrop-blur-md shadow-[0_0_50px_rgba(0,255,65,0.1)]" onclick="event.stopPropagation()">
+            <h2 class="text-2xl font-bold text-white mb-6 tracking-tighter border-b border-green-900 pb-2">OPERATOR MANUAL</h2>
+            
+            <div class="space-y-6 text-sm text-gray-300 font-mono leading-relaxed">
+                <p class="flex flex-wrap items-center gap-2">
+                    <span class="text-green-500 font-bold">1. LAYERS:</span> Select an effect and click 
+                    <span class="inline-flex items-center justify-center w-6 h-6 border border-green-700 bg-green-900/30 text-green-400 font-bold rounded-sm text-xs">+</span> 
+                    to add it to your stack. Reorder effects using the <span class="text-gray-500 font-bold text-xs">&lt; &gt;</span> arrows.
+                </p>
+                
+                <p class="flex flex-wrap items-center gap-2">
+                    <span class="text-green-500 font-bold">2. SOURCES:</span> Upload videos to 
+                    <span class="inline-block px-1.5 py-0.5 border border-solid border-green-700 bg-green-900/20 text-green-400 font-bold text-[10px] rounded-sm">SRC A</span> 
+                    and 
+                    <span class="inline-block px-1.5 py-0.5 border border-dashed border-green-700 text-gray-400 text-[10px] rounded-sm">SRC B</span>.
+                    Effects like "Motion Transfer" blend them together.
+                </p>
+                
+                <p class="flex flex-wrap items-center gap-2">
+                    <span class="text-green-500 font-bold">3. TWEAK:</span> Click any layer to reveal its 
+                    <span class="inline-block px-1.5 py-0.5 bg-green-900/20 text-green-400 font-bold text-[10px] rounded-sm border border-green-900/30">CONTROLS</span> 
+                    below. Adjust sliders to destroy the footage.
+                </p>
+            </div>
+
+            <button class="mt-8 w-full py-3 bg-green-600 hover:bg-green-500 text-black font-bold rounded-sm transition-colors shadow-[4px_4px_0px_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-none" onclick="document.getElementById('guideOverlay').classList.add('hidden')">
+                INITIALIZE
+            </button>
+        </div>
+    </div>
 
     <!-- Main Workspace -->
     <main class="flex-1 flex flex-col relative overflow-hidden">
@@ -172,32 +214,45 @@
         <div class="bg-black/95 border-t border-green-900 p-3 z-20 max-h-[55vh] flex flex-col backdrop-blur-md">
             
             <!-- Top Row: Transport & Add Layer -->
-            <div class="flex items-center gap-3 mb-3 shrink-0">
+            <div class="flex items-center gap-2 mb-3 shrink-0">
                 <button id="playBtn" class="p-3 bg-gray-800 border border-green-700 rounded-full hover:bg-green-900 transition-colors shrink-0" disabled>
                     <i data-lucide="play" class="w-5 h-5 fill-current"></i>
                 </button>
 
-                <div class="flex-1 flex gap-2">
-                    <select id="newLayerSelect" class="flex-1 bg-black text-green-500 border border-green-700 p-2 text-xs font-mono uppercase focus:outline-none focus:border-green-400 rounded-sm">
+                <!-- Combined Add Layer Group -->
+                <div class="flex-1 flex items-stretch">
+                    <select id="newLayerSelect" class="flex-1 bg-black text-green-500 border border-green-700 border-r-0 p-2 text-xs font-mono uppercase focus:outline-none focus:border-green-400 rounded-l-sm rounded-r-none">
                         <option value="smear">SMEAR (I-FRAME)</option>
-                        <option value="transfer">MOTION (A→B)</option>
-                        <option value="transfer_rev">MOTION (B→A)</option>
-                        <option value="luma_wipe">LUMA KEY (A→B)</option>
-                        <option value="interlace">INTERLACE (A+B)</option>
+                        <option value="quantize">QUANTIZE (ALIASING)</option>
+                        <option value="drift">VECTOR DRIFT</option>
+                        <option value="freeze">FREEZE ZONE</option>
+                        <option value="echo">VECTOR ECHO</option>
+                        <option value="transfer">MOTION TRANSFER</option>
+                        <option value="luma_wipe">LUMA WIPE</option>
+                        <option value="interlace">INTERLACE</option>
                         <option value="rgb">RGB OFFSET</option>
                         <option value="sort">PIXEL SORT</option>
                         <option value="slice">ROW SLICER</option>
                         <option value="difference">DIFF GLITCH</option>
                         <option value="noise">NOISE/GRAIN</option>
                     </select>
-                    <button id="addLayerBtn" class="px-3 border border-green-700 hover:bg-green-900/50 text-green-400 font-bold">+</button>
+                    <button id="addLayerBtn" class="px-3 border border-green-700 hover:bg-green-900/50 text-green-400 font-bold rounded-r-sm rounded-l-none border-l-0 bg-green-900/10">+</button>
                 </div>
 
-                <label id="bLabel" class="cursor-pointer p-2 border border-dashed border-green-700 hover:bg-green-900/30 rounded text-center w-[80px] shrink-0 transition-all" title="Upload 2nd Video">
-                    <span class="text-[9px] block text-gray-400">SRC B</span>
-                    <i id="bIcon" data-lucide="plus" class="w-3 h-3 mx-auto"></i>
-                    <input type="file" id="uploadB" accept="video/*" class="hidden">
-                </label>
+                <!-- Sources Group -->
+                <div class="flex gap-2">
+                    <label id="aLabel" class="cursor-pointer p-2 border border-solid border-green-700 hover:bg-green-900/30 rounded text-center w-[60px] shrink-0 transition-all bg-green-900/20" title="Swap Source A">
+                        <span class="text-[9px] block text-green-400 font-bold">SRC A</span>
+                        <i data-lucide="refresh-cw" class="w-3 h-3 mx-auto text-green-500 mt-0.5"></i>
+                        <input type="file" id="changeSourceA" accept="video/*" class="hidden">
+                    </label>
+
+                    <label id="bLabel" class="cursor-pointer p-2 border border-dashed border-green-700 hover:bg-green-900/30 rounded text-center w-[60px] shrink-0 transition-all" title="Upload/Swap Source B">
+                        <span class="text-[9px] block text-gray-400">SRC B</span>
+                        <i id="bIcon" data-lucide="plus" class="w-3 h-3 mx-auto mt-0.5"></i>
+                        <input type="file" id="uploadB" accept="video/*" class="hidden">
+                    </label>
+                </div>
             </div>
 
             <!-- Layer List (Horizontal Scroll) -->
@@ -210,6 +265,18 @@
                 <div class="flex justify-between items-center mb-2">
                     <span id="activeLayerName" class="text-xs font-bold text-green-400 bg-green-900/20 px-2 py-0.5 rounded">LAYER CONTROLS</span>
                     <button id="removeLayerBtn" class="text-[10px] text-red-500 hover:text-red-400 border border-red-900 px-2 rounded">REMOVE LAYER</button>
+                </div>
+                
+                <!-- Direction Control (Conditional) -->
+                <div id="dirControl" class="hidden flex items-center justify-between bg-gray-900 border border-green-900/50 p-2 rounded mb-3">
+                    <span class="text-xs font-bold text-green-400">DIRECTION</span>
+                    <div class="flex items-center gap-2 cursor-pointer" id="dirWrapper">
+                        <span id="dirLabelA" class="text-[10px] text-green-500 font-bold font-mono">A &rarr; B</span>
+                        <div class="w-8 h-4 bg-gray-800 border border-green-700 rounded-full relative transition-colors">
+                            <div id="dirKnob" class="w-2 h-2 bg-green-500 rounded-full absolute top-1 left-1 transition-all"></div>
+                        </div>
+                        <span id="dirLabelB" class="text-[10px] text-gray-600 font-mono">B &rarr; A</span>
+                    </div>
                 </div>
 
                 <!-- STANDARD CONTROLS -->
@@ -301,6 +368,12 @@
         // --- UI Elements ---
         const standardControls = document.getElementById('standardControls');
         const rgbControls = document.getElementById('rgbControls');
+        const dirControl = document.getElementById('dirControl');
+        const dirWrapper = document.getElementById('dirWrapper');
+        const dirKnob = document.getElementById('dirKnob');
+        const dirLabelA = document.getElementById('dirLabelA');
+        const dirLabelB = document.getElementById('dirLabelB');
+        
         const layerList = document.getElementById('layerList');
         const activeLayerName = document.getElementById('activeLayerName');
         const visCanvas = document.getElementById('rgbVisualizer');
@@ -313,6 +386,8 @@
         const placeholderState = document.getElementById('placeholderState');
         const recordBtn = document.getElementById('recordBtn');
         const snapBtn = document.getElementById('snapBtn');
+        const helpBtn = document.getElementById('helpBtn');
+        const guideOverlay = document.getElementById('guideOverlay');
 
         // Sliders
         const param1 = document.getElementById('param1');
@@ -337,17 +412,21 @@
         };
 
         // --- Config ---
+        // def array is now [p1, p2, p3, dir(0=A->B, 1=B->A)]
         const modeConfig = {
-            'smear': { name: 'Smear', l1: 'Thresh', l2: 'Decay', l3: 'Mosaic', def: [15, 0, 0] },
-            'transfer': { name: 'Motion A→B', l1: 'Sens', l2: 'Blend', l3: 'Luma Mask', def: [20, 100, 0] },
-            'transfer_rev': { name: 'Motion B→A', l1: 'Sens', l2: 'Blend', l3: 'A Opacity', def: [20, 100, 100] },
-            'luma_wipe': { name: 'Luma Key', l1: 'Thresh', l2: 'Softness', l3: 'Direction', def: [50, 10, 0] },
-            'interlace': { name: 'Interlace', l1: 'Height', l2: 'Scan', l3: 'Jitter', def: [4, 0, 0] },
-            'difference': { name: 'Diff Glitch', l1: 'Thresh', l2: 'Ghost', l3: 'Color', def: [25, 80, 0] },
-            'sort': { name: 'Sort', l1: 'Drift', l2: 'Thresh', l3: 'Dir', def: [10, 50, 0] },
-            'slice': { name: 'Slicer', l1: 'Chance', l2: 'Height', l3: 'Shift', def: [10, 20, 10] },
-            'rgb': { name: 'RGB Offset', type: 'rgb', def: {rx:0, ry:0, gx:0, gy:0, bx:0, by:0} },
-            'noise': { name: 'Noise', l1: 'Grain', l2: 'Interf', l3: 'V-Sync', def: [20, 5, 0] }
+            'smear': { name: 'Smear', l1: 'Thresh', l2: 'Decay', l3: 'Mosaic', def: [15, 0, 0, 0], hasDir: false },
+            'quantize': { name: 'Quantize', l1: 'Block Size', l2: 'Thresh', l3: 'Crush', def: [20, 15, 0, 0], hasDir: false },
+            'drift': { name: 'Drift', l1: 'Speed X', l2: 'Speed Y', l3: 'Noise', def: [55, 50, 0, 0], hasDir: false },
+            'freeze': { name: 'Freeze', l1: 'Radius', l2: 'Feather', l3: 'Invert', def: [30, 10, 0, 0], hasDir: false },
+            'echo': { name: 'Echo', l1: 'Decay', l2: 'Offset', l3: 'Thresh', def: [80, 0, 10, 0], hasDir: false },
+            'transfer': { name: 'Motion', l1: 'Sens', l2: 'Blend', l3: 'Luma Mask', def: [20, 100, 0, 0], hasDir: true },
+            'luma_wipe': { name: 'Luma Wipe', l1: 'Thresh', l2: 'Softness', l3: 'Unused', def: [50, 10, 0, 0], hasDir: true },
+            'interlace': { name: 'Interlace', l1: 'Height', l2: 'Scan', l3: 'Jitter', def: [4, 0, 0, 0], hasDir: true },
+            'difference': { name: 'Diff Glitch', l1: 'Thresh', l2: 'Ghost', l3: 'Color', def: [25, 80, 0, 0], hasDir: false },
+            'sort': { name: 'Sort', l1: 'Drift', l2: 'Thresh', l3: 'Dir', def: [10, 50, 0, 0], hasDir: false },
+            'slice': { name: 'Slicer', l1: 'Chance', l2: 'Height', l3: 'Shift', def: [10, 20, 10, 0], hasDir: false },
+            'rgb': { name: 'RGB Offset', type: 'rgb', def: {rx:0, ry:0, gx:0, gy:0, bx:0, by:0}, hasDir: false },
+            'noise': { name: 'Noise', l1: 'Grain', l2: 'Interf', l3: 'V-Sync', def: [20, 5, 0, 0], hasDir: false }
         };
 
         // --- State ---
@@ -389,18 +468,48 @@
             updateControls();
         }
 
+        function moveLayer(e, index, direction) {
+            e.stopPropagation();
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= layers.length) return;
+            [layers[index], layers[newIndex]] = [layers[newIndex], layers[index]];
+            renderLayers();
+        }
+
         function renderLayers() {
             layerList.innerHTML = '';
             layers.forEach((layer, index) => {
                 const config = modeConfig[layer.type];
                 const div = document.createElement('div');
-                div.className = `min-w-[100px] p-2 border border-green-900 bg-gray-900 rounded cursor-pointer flex flex-col justify-between transition-all ${layer.id === selectedLayerId ? 'active-layer' : 'opacity-70 hover:opacity-100'}`;
+                div.className = `min-w-[120px] p-2 border border-green-900 bg-gray-900 rounded cursor-pointer flex flex-col justify-between transition-all ${layer.id === selectedLayerId ? 'active-layer' : 'opacity-70 hover:opacity-100'}`;
                 
+                const canMoveLeft = index > 0;
+                const canMoveRight = index < layers.length - 1;
+                const leftClass = canMoveLeft ? "hover:text-white cursor-pointer" : "opacity-30 cursor-default";
+                const rightClass = canMoveRight ? "hover:text-white cursor-pointer" : "opacity-30 cursor-default";
+
                 div.innerHTML = `
-                    <div class="text-[10px] text-gray-400 font-mono mb-1">#${index+1}</div>
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="text-[10px] text-gray-400 font-mono">#${index+1}</div>
+                        <div class="flex gap-1 text-[10px] text-gray-500 font-bold">
+                            <span class="${leftClass}" data-dir="-1">&lt;</span>
+                            <span class="${rightClass}" data-dir="1">&gt;</span>
+                        </div>
+                    </div>
                     <div class="text-xs font-bold text-green-500 truncate">${config.name}</div>
                 `;
+                
                 div.onclick = () => selectLayer(layer.id);
+                div.querySelectorAll('span[data-dir]').forEach(span => {
+                    span.onclick = (e) => {
+                        const dir = parseInt(span.getAttribute('data-dir'));
+                        if ((dir === -1 && index > 0) || (dir === 1 && index < layers.length - 1)) {
+                            moveLayer(e, index, dir);
+                        } else {
+                            e.stopPropagation();
+                        }
+                    };
+                });
                 layerList.appendChild(div);
             });
         }
@@ -411,6 +520,7 @@
                 activeLayerName.textContent = "NO LAYER SELECTED";
                 standardControls.classList.add('hidden');
                 rgbControls.classList.add('hidden');
+                dirControl.classList.add('hidden');
                 removeLayerBtn.disabled = true;
                 return;
             }
@@ -419,11 +529,26 @@
             const config = modeConfig[layer.type];
             activeLayerName.textContent = `${config.name.toUpperCase()} CONTROLS`;
 
+            // Direction Control Logic
+            if (config.hasDir) {
+                dirControl.classList.remove('hidden');
+                const isRev = layer.params[3] === 1;
+                if (isRev) {
+                    dirKnob.style.left = 'auto'; dirKnob.style.right = '4px';
+                    dirLabelB.classList.add('text-green-500', 'font-bold'); dirLabelB.classList.remove('text-gray-600');
+                    dirLabelA.classList.remove('text-green-500', 'font-bold'); dirLabelA.classList.add('text-gray-600');
+                } else {
+                    dirKnob.style.left = '4px'; dirKnob.style.right = 'auto';
+                    dirLabelA.classList.add('text-green-500', 'font-bold'); dirLabelA.classList.remove('text-gray-600');
+                    dirLabelB.classList.remove('text-green-500', 'font-bold'); dirLabelB.classList.add('text-gray-600');
+                }
+            } else {
+                dirControl.classList.add('hidden');
+            }
+
             if (config.type === 'rgb') {
                 standardControls.classList.add('hidden');
                 rgbControls.classList.remove('hidden');
-                
-                // Update inputs
                 Object.keys(rgbInputs).forEach(k => {
                     rgbInputs[k].value = layer.params[k];
                     rgbLabels[k].textContent = layer.params[k];
@@ -450,6 +575,15 @@
         // --- Event Listeners (UI) ---
         addLayerBtn.onclick = () => addLayer(newLayerSelect.value);
         removeLayerBtn.onclick = () => { if(selectedLayerId) removeLayer(selectedLayerId); };
+        helpBtn.onclick = () => guideOverlay.classList.remove('hidden');
+
+        dirWrapper.onclick = () => {
+            const layer = layers.find(l => l.id === selectedLayerId);
+            if (layer && modeConfig[layer.type].hasDir) {
+                layer.params[3] = layer.params[3] === 0 ? 1 : 0;
+                updateControls();
+            }
+        };
 
         [param1, param2, param3].forEach((p, idx) => {
             p.oninput = (e) => {
@@ -496,11 +630,11 @@
             canvas.height = processingHeight;
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            // Init Default Layer
             addLayer('smear');
         }
 
         document.getElementById('uploadA').onchange = (e) => handleUpload(e.target.files[0], videoA, true);
+        document.getElementById('changeSourceA').onchange = (e) => handleUpload(e.target.files[0], videoA, true);
         document.getElementById('uploadB').onchange = (e) => handleUpload(e.target.files[0], videoB, false);
 
         function handleUpload(file, vid, isPrimary) {
@@ -522,6 +656,7 @@
                     if(videoB.readyState>=2) videoB.play();
                     startLoop();
                 } else {
+                    document.getElementById('bLabel').classList.remove('border-dashed');
                     document.getElementById('bLabel').classList.add('bg-green-600', 'text-black', 'border-solid');
                     document.getElementById('bIcon').setAttribute('data-lucide', 'check');
                     lucide.createIcons();
@@ -536,14 +671,15 @@
                 if(videoB.src) videoB.pause();
                 playBtn.innerHTML = '<i data-lucide="play" class="w-5 h-5 fill-current"></i>';
                 cancelAnimationFrame(animationId);
+                isPlaying = false;
             } else {
                 videoA.play();
                 if(videoB.src) videoB.play();
                 playBtn.innerHTML = '<i data-lucide="pause" class="w-5 h-5 fill-current"></i>';
+                isPlaying = true;
                 loop();
             }
             lucide.createIcons();
-            isPlaying = !isPlaying;
         };
 
         function loop() {
@@ -584,34 +720,18 @@
                 return;
             }
 
-            // 3. Chain Layers
-            // We start with the CURRENT CANVAS STATE (Feedback Loop) as the base
-            // But some effects might want pure video. 
-            // Standard datamosh = Previous Canvas + Current Motion.
-            
-            // For the pipeline:
-            // Input 1: The result of the PREVIOUS frame (on canvas now).
-            // Input 2: The raw video frames (for motion reference).
-            
             let currentCanvas = ctx.getImageData(0,0,w,h);
-            
-            // We'll create a buffer that gets updated by each layer
-            // Ideally we'd ping-pong, but for simplicity we modify 'currentCanvas' data directly or write to 'output'
-            
             let buffer = new Uint8ClampedArray(currentCanvas.data); 
-            // We need a scratch buffer to write into for each layer so we don't read/write same pixels in sorting/shifting
             
             layers.forEach(layer => {
-                const outputData = new Uint8ClampedArray(buffer); // Copy input for this stage
+                const outputData = new Uint8ClampedArray(buffer); 
                 const p = layer.params;
                 
-                // Helper vars
                 const dA = frameA.data;
                 const dP = previousFrameData.data;
-                const dC = buffer; // Input for this layer (result of prev layer)
-                const dOut = outputData; // Output for this layer
+                const dC = buffer; 
+                const dOut = outputData;
 
-                // Execute Algos
                 if (layer.type === 'smear') {
                     const thresh = p[0] * 1.5;
                     const crush = p[1];
@@ -640,31 +760,150 @@
                         }
                     }
                 }
-                else if (layer.type === 'transfer' || layer.type === 'transfer_rev') {
-                    const sensitivity = (100 - p[0]) * 3;
-                    const isRev = layer.type === 'transfer_rev';
-                    const src2 = frameB ? frameB.data : (isRev ? null : dA); // If rev and no B, skip
-                    
-                    if (isRev && !src2) {
-                        // Pass through if B missing in B->A mode
-                    } else {
-                        const sourcePix = isRev ? dA : src2; // What paint with?
-                        
-                        for (let i=0; i<dA.length; i+=4) {
-                            // Motion calc always based on A vs Prev A? Or B vs Prev B?
-                            // Standard transfer: A motion reveals B.
-                            // Rev transfer: A motion reveals A (over B)? No, user wants stack.
-                            // Let's stick to: Motion of A reveals B pixels.
-                            
+                else if (layer.type === 'quantize') {
+                    // NEW MODE: Quantize (Motion Quantization / Aliasing)
+                    // Logic: Process frames in larger blocks.
+                    const blockSize = Math.max(1, p[0]); // Size of quantization block
+                    const thresh = p[1] * 1.5;
+                    const crush = p[2];
+
+                    for (let y = 0; y < h; y += blockSize) {
+                        for (let x = 0; x < w; x += blockSize) {
+                            // Calc average motion or just use top-left of block
+                            const i = (y*w+x)*4;
                             const diff = Math.abs(dA[i]-dP[i]) + Math.abs(dA[i+1]-dP[i+1]) + Math.abs(dA[i+2]-dP[i+2]);
                             
-                            if (diff > sensitivity) {
-                                dOut[i]=sourcePix[i]; dOut[i+1]=sourcePix[i+1]; dOut[i+2]=sourcePix[i+2];
-                            } else {
-                                dOut[i]=dC[i]; dOut[i+1]=dC[i+1]; dOut[i+2]=dC[i+2];
+                            let updateBlock = diff > thresh;
+                            
+                            // Fill block
+                            for (let by = 0; by < blockSize; by++) {
+                                for (let bx = 0; bx < blockSize; bx++) {
+                                    if (y+by >= h || x+bx >= w) continue;
+                                    
+                                    const bi = ((y+by)*w + (x+bx))*4;
+                                    if (updateBlock) {
+                                        dOut[bi]=dA[bi]; dOut[bi+1]=dA[bi+1]; dOut[bi+2]=dA[bi+2]; dOut[bi+3]=255;
+                                    } else {
+                                        // Use previous buffer value (Stick)
+                                        if (crush > 0 && Math.random()*100 < 2) {
+                                            const n = (Math.random()-0.5)*crush;
+                                            dOut[bi]=dC[bi]+n; dOut[bi+1]=dC[bi+1]+n; dOut[bi+2]=dC[bi+2]+n;
+                                        } else {
+                                            dOut[bi]=dC[bi]; dOut[bi+1]=dC[bi+1]; dOut[bi+2]=dC[bi+2];
+                                        }
+                                        dOut[bi+3]=255;
+                                    }
+                                }
                             }
-                            dOut[i+3]=255;
                         }
+                    }
+                }
+                else if (layer.type === 'drift') {
+                    // NEW MODE: Drift (Vector Drift)
+                    // Logic: Constant offset applied to buffer + standard refresh
+                    const sx = Math.floor((p[0]-50) * 0.5); // Speed X
+                    const sy = Math.floor((p[1]-50) * 0.5); // Speed Y
+                    const noise = p[2];
+
+                    for (let y = 0; y < h; y++) {
+                        for (let x = 0; x < w; x++) {
+                            const i = (y*w+x)*4;
+                            // Check video motion first (to refresh pixels)
+                            const diff = Math.abs(dA[i]-dP[i]) + Math.abs(dA[i+1]-dP[i+1]) + Math.abs(dA[i+2]-dP[i+2]);
+                            
+                            if (diff > 40) { // Hardcoded refresh thresh for drift stability
+                                dOut[i] = dA[i]; dOut[i+1] = dA[i+1]; dOut[i+2] = dA[i+2];
+                            } else {
+                                // Drift: Read buffer from offset coords
+                                let ox = x - sx;
+                                let oy = y - sy;
+                                
+                                // Wrap coords? or Clamp? Clamp looks smearier.
+                                ox = Math.min(Math.max(ox, 0), w-1);
+                                oy = Math.min(Math.max(oy, 0), h-1);
+                                
+                                const oi = (oy*w+ox)*4;
+                                
+                                dOut[i] = dC[oi]; dOut[i+1] = dC[oi+1]; dOut[i+2] = dC[oi+2];
+                                
+                                if (noise > 0 && Math.random()*100 < 1) {
+                                     dOut[i]+=noise; dOut[i+1]+=noise; dOut[i+2]+=noise;
+                                }
+                            }
+                            dOut[i+3] = 255;
+                        }
+                    }
+                }
+                else if (layer.type === 'freeze') {
+                    // NEW MODE: Freeze (Vector Freeze Zones)
+                    const radius = (p[0] / 100) * (h/2);
+                    const feather = p[1];
+                    const invert = p[2] > 50;
+                    const cx = w/2;
+                    const cy = h/2;
+
+                    for (let y = 0; y < h; y++) {
+                        for (let x = 0; x < w; x++) {
+                            const i = (y*w+x)*4;
+                            const dist = Math.sqrt((x-cx)*(x-cx) + (y-cy)*(y-cy));
+                            
+                            let isFrozen = dist < radius;
+                            if (invert) isFrozen = !isFrozen;
+
+                            if (isFrozen) {
+                                // Force Freeze: Keep buffer
+                                dOut[i] = dC[i]; dOut[i+1] = dC[i+1]; dOut[i+2] = dC[i+2];
+                            } else {
+                                // Normal update (Pass through A)
+                                // Or should it be Smear? Let's make it standard video pass-through for contrast.
+                                dOut[i] = dA[i]; dOut[i+1] = dA[i+1]; dOut[i+2] = dA[i+2];
+                            }
+                            dOut[i+3] = 255;
+                        }
+                    }
+                }
+                else if (layer.type === 'echo') {
+                    // NEW MODE: Echo (Vector Echo)
+                    const decay = p[0] / 100; // Blend amount
+                    const offset = Math.floor(p[1] / 5); // Shift
+                    const thresh = p[2] * 2; // Motion thresh to generate echo
+
+                    for (let y = 0; y < h; y++) {
+                        for (let x = 0; x < w; x++) {
+                            const i = (y*w+x)*4;
+                            
+                            // Blend current video A with Buffer
+                            // dOut = VideoA * (1-decay) + Buffer * decay
+                            
+                            let r, g, b;
+                            
+                            // Simple Echo
+                            r = dA[i] * (1-decay) + dC[i] * decay;
+                            g = dA[i+1] * (1-decay) + dC[i+1] * decay;
+                            b = dA[i+2] * (1-decay) + dC[i+2] * decay;
+                            
+                            dOut[i] = r; dOut[i+1] = g; dOut[i+2] = b; dOut[i+3] = 255;
+                        }
+                    }
+                }
+                else if (layer.type === 'transfer') {
+                    const sensitivity = (100 - p[0]) * 3;
+                    const isRev = p[3] === 1; // Direction Switch
+                    
+                    const srcDriver = isRev ? (frameB ? frameB.data : dA) : dA; // If B->A, driver is B (if exists)
+                    const srcPaint  = isRev ? dA : (frameB ? frameB.data : dA); // If B->A, paint is A
+                    
+                    const paintSource = isRev ? dA : (frameB ? frameB.data : dA); 
+
+                    for (let i=0; i<dA.length; i+=4) {
+                        const diff = Math.abs(dA[i]-dP[i]) + Math.abs(dA[i+1]-dP[i+1]) + Math.abs(dA[i+2]-dP[i+2]);
+                        
+                        if (diff > sensitivity) {
+                            dOut[i]=paintSource[i]; dOut[i+1]=paintSource[i+1]; dOut[i+2]=paintSource[i+2];
+                        } else {
+                            dOut[i]=dC[i]; dOut[i+1]=dC[i+1]; dOut[i+2]=dC[i+2];
+                        }
+                        dOut[i+3]=255;
                     }
                 }
                 else if (layer.type === 'rgb') {
@@ -672,7 +911,6 @@
                     for (let y=0; y<h; y++) {
                         for (let x=0; x<w; x++) {
                             const i = (y*w+x)*4;
-                            // Read from dC (current buffer)
                             const getIdx = (xx, yy) => {
                                 xx = Math.min(Math.max(xx,0), w-1);
                                 yy = Math.min(Math.max(yy,0), h-1);
@@ -696,7 +934,6 @@
                         for (let x=0; x<w; x++) {
                             let sx = x+shift;
                             if(sx<0) sx+=w; if(sx>=w) sx-=w;
-                            // Safe index
                             sx = Math.min(Math.max(Math.floor(sx),0), w-1);
                             const i=(y*w+x)*4; const si=(y*w+sx)*4;
                             dOut[i]=dC[si]; dOut[i+1]=dC[si+1]; dOut[i+2]=dC[si+2]; dOut[i+3]=255;
@@ -732,16 +969,78 @@
                         dOut[i+3]=255;
                     }
                 }
-
-                // Update buffer for next layer
+                else if (layer.type === 'luma_wipe') {
+                    const thresh=p[0]*2.55, soft=p[1];
+                    const dir=p[3] === 1; // 0: A->B, 1: B->A
+                    const src1 = dA;
+                    const src2 = frameB ? frameB.data : dA;
+                    
+                    // In Luma Wipe:
+                    // A->B: A is base, B is revealed by luma.
+                    // B->A: B is base, A is revealed.
+                    
+                    const base = dir ? src2 : src1;
+                    const reveal = dir ? src1 : src2;
+                    
+                    // We use A's luma map for consistency? Or Base's luma map?
+                    // Let's use Base's luma map to wipe itself away.
+                    
+                    for (let i=0; i<dA.length; i+=4) {
+                        const luma = (base[i]+base[i+1]+base[i+2])/3;
+                        let showReveal = luma < thresh; // Reveal if dark? Or Light?
+                        // Let's say Threshold is "Progress".
+                        
+                        if(showReveal) { 
+                            dOut[i]=reveal[i]; dOut[i+1]=reveal[i+1]; dOut[i+2]=reveal[i+2]; 
+                        } else { 
+                            dOut[i]=dC[i]; dOut[i+1]=dC[i+1]; dOut[i+2]=dC[i+2]; 
+                        }
+                        dOut[i+3]=255;
+                    }
+                }
+                 else if (layer.type === 'interlace') {
+                    const height=Math.max(1, Math.floor(p[0]/2)), scan=p[1], jitter=Math.random()*p[2];
+                    const isRev = p[3] === 1;
+                    const src1 = dA;
+                    const src2 = frameB ? frameB.data : dA;
+                    
+                    const evenSrc = isRev ? src2 : src1;
+                    const oddSrc  = isRev ? src1 : src2;
+                    
+                    for (let y=0; y<h; y++) {
+                        const isEven = (Math.floor((y+jitter)/height)%2 === 0);
+                        const source = isEven ? evenSrc : oddSrc;
+                        
+                        for (let x=0; x<w; x++) {
+                            const i=(y*w+x)*4;
+                            dOut[i]=source[i]; dOut[i+1]=source[i+1]; dOut[i+2]=source[i+2];
+                            dOut[i+3]=255;
+                        }
+                    }
+                }
+                else if (layer.type === 'sort') {
+                    const drift=Math.floor(p[0]/5), thresh=p[1]*2.55, isVert=p[2]<50;
+                    for (let y=0; y<h; y++) {
+                        for (let x=0; x<w; x++) {
+                            const i=(y*w+x)*4;
+                            const bright = (dA[i]+dA[i+1]+dA[i+2])/3;
+                            if(bright>thresh) {
+                                let offI;
+                                if(isVert) { const offY=Math.max(0,y-drift); offI=(offY*w+x)*4; }
+                                else { const offX=Math.max(0,x-drift); offI=(y*w+offX)*4; }
+                                dOut[i]=dC[offI]; dOut[i+1]=dC[offI+1]; dOut[i+2]=dC[offI+2];
+                            } else {
+                                dOut[i]=dA[i]; dOut[i+1]=dA[i+1]; dOut[i+2]=dA[i+2];
+                            }
+                            dOut[i+3]=255;
+                        }
+                    }
+                }
                 buffer = outputData;
             });
 
-            // Write final buffer
             currentCanvas.data.set(buffer);
             ctx.putImageData(currentCanvas, 0, 0);
-
-            // Update history
             previousFrameData = frameA;
         }
 
@@ -779,7 +1078,7 @@
             const a = document.createElement('a');
             a.download = 'datamosh_snap.png'; a.href = canvas.toDataURL(); a.click();
         };
-        document.getElementById('helpBtn').onclick = () => alert("LAYERS GUIDE:\n1. 'Smear' is your base. Keep it at the top.\n2. Add 'RGB' or 'Slicer' layers below for post-fx.\n3. Stack multiple 'Motion' layers for complex blends.\n4. Click a layer in the list to edit its sliders.");
+        document.getElementById('helpBtn').onclick = () => guideOverlay.classList.remove('hidden');
         
         initCanvas();
     </script>
