@@ -20,6 +20,7 @@
         :root {
             --neon-green: #00ff41;
             --neon-red: #ff0055;
+            --neon-blue: #00ffff;
             --dark-bg: #050505;
             --panel-bg: #111111;
         }
@@ -52,7 +53,7 @@
         }
         .glitch-text::after {
             left: -2px;
-            text-shadow: -1px 0 #00ffff;
+            text-shadow: -1px 0 var(--neon-blue);
             clip: rect(44px, 450px, 56px, 0);
             animation: glitch-anim2 5s infinite linear alternate-reverse;
         }
@@ -73,27 +74,41 @@
             -webkit-appearance: none;
             width: 100%;
             background: transparent;
-            margin: 10px 0;
+            margin: 6px 0;
         }
         input[type=range]:focus { outline: none; }
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
-            height: 6px;
+            height: 4px;
             background: #333;
             border: 1px solid var(--neon-green);
-            box-shadow: 0 0 5px var(--neon-green);
+            box-shadow: 0 0 2px var(--neon-green);
         }
         input[type=range]::-webkit-slider-thumb {
-            height: 20px;
-            width: 12px;
+            height: 16px;
+            width: 8px;
             background: var(--neon-green);
             cursor: pointer;
             -webkit-appearance: none;
-            margin-top: -8px;
-            box-shadow: 0 0 10px var(--neon-green);
+            margin-top: -7px;
+            box-shadow: 0 0 8px var(--neon-green);
+            transition: transform 0.1s;
         }
+        
+        /* RGB Specific Sliders */
+        .slider-r::-webkit-slider-runnable-track { border-color: #ff0055; box-shadow: 0 0 2px #ff0055; }
+        .slider-r::-webkit-slider-thumb { background: #ff0055; box-shadow: 0 0 8px #ff0055; }
+        
+        .slider-g::-webkit-slider-runnable-track { border-color: #00ff41; box-shadow: 0 0 2px #00ff41; }
+        .slider-g::-webkit-slider-thumb { background: #00ff41; box-shadow: 0 0 8px #00ff41; }
+        
+        .slider-b::-webkit-slider-runnable-track { border-color: #00ffff; box-shadow: 0 0 2px #00ffff; }
+        .slider-b::-webkit-slider-thumb { background: #00ffff; box-shadow: 0 0 8px #00ffff; }
 
-        /* CRT Scanline Effect */
+        /* Scrollbar for Layer List */
+        .layer-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .layer-scroll::-webkit-scrollbar-thumb { background: #333; }
+        
         .scanlines {
             background: linear-gradient(
                 to bottom,
@@ -106,20 +121,20 @@
             pointer-events: none;
         }
 
-        /* Hide Scrollbar */
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        canvas { image-rendering: pixelated; }
 
-        canvas {
-            image-rendering: pixelated; /* Essential for the crunch look */
+        .active-layer {
+            background-color: rgba(0, 255, 65, 0.1);
+            border-color: var(--neon-green);
         }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="p-4 border-b border-green-900 bg-black flex justify-between items-center z-20">
+    <header class="p-4 border-b border-green-900 bg-black flex justify-between items-center z-20 shrink-0">
         <div class="flex items-center gap-2">
-            <i data-lucide="zap" class="text-green-500 w-6 h-6"></i>
+            <i data-lucide="layers" class="text-green-500 w-6 h-6"></i>
             <h1 class="text-2xl font-bold tracking-tighter glitch-text" data-text="DATAMOSH">DATAMOSH</h1>
         </div>
         <div class="flex gap-2">
@@ -139,14 +154,13 @@
             <!-- Output Canvas -->
             <canvas id="moshCanvas" class="w-full max-w-4xl h-auto aspect-video border-2 border-green-900/50 shadow-[0_0_20px_rgba(0,255,65,0.1)] bg-black"></canvas>
             
-            <!-- Overlay CRT Lines -->
             <div class="absolute inset-0 scanlines pointer-events-none opacity-30"></div>
 
             <!-- Loading/Start State -->
             <div id="placeholderState" class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10 backdrop-blur-sm p-6 text-center">
                 <i data-lucide="upload-cloud" class="w-16 h-16 text-green-500 mb-4 animate-pulse"></i>
                 <h2 class="text-xl mb-2">Initialize Sequence</h2>
-                <p class="text-gray-400 text-sm max-w-md mb-6">Upload a primary video to begin datamoshing. Add a second video for blend effects.</p>
+                <p class="text-gray-400 text-sm max-w-md mb-6">Upload primary video. Stack layers to compound effects.</p>
                 <label class="cursor-pointer bg-green-600 hover:bg-green-500 text-black font-bold py-3 px-8 rounded-none border border-green-400 shadow-[4px_4px_0px_#003300] active:translate-y-1 active:shadow-none transition-all">
                     UPLOAD SOURCE A
                     <input type="file" id="uploadA" accept="video/*" class="hidden">
@@ -155,72 +169,127 @@
         </div>
 
         <!-- Controls Panel -->
-        <div class="bg-black/90 border-t border-green-900 p-4 z-20 max-h-[45vh] overflow-y-auto backdrop-blur-md">
+        <div class="bg-black/95 border-t border-green-900 p-3 z-20 max-h-[55vh] flex flex-col backdrop-blur-md">
             
-            <!-- Top Bar: Playback & Mode -->
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                
-                <!-- Play/Pause -->
-                <button id="playBtn" class="p-3 bg-gray-800 border border-green-700 rounded-full hover:bg-green-900 transition-colors" disabled>
-                    <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+            <!-- Top Row: Transport & Add Layer -->
+            <div class="flex items-center gap-3 mb-3 shrink-0">
+                <button id="playBtn" class="p-3 bg-gray-800 border border-green-700 rounded-full hover:bg-green-900 transition-colors shrink-0" disabled>
+                    <i data-lucide="play" class="w-5 h-5 fill-current"></i>
                 </button>
 
-                <!-- Mode Selector -->
-                <div class="flex-1 min-w-[150px]">
-                    <select id="modeSelect" class="w-full bg-black text-green-500 border border-green-700 p-2 font-mono uppercase focus:outline-none focus:border-green-400 rounded-sm">
-                        <option value="smear">MODE: I-FRAME KILL (SMEAR)</option>
-                        <option value="transfer">MODE: MOTION TRANSFER (A→B)</option>
-                        <option value="difference">MODE: DIFF GLITCH</option>
-                        <option value="sort">MODE: PIXEL DRAG</option>
+                <div class="flex-1 flex gap-2">
+                    <select id="newLayerSelect" class="flex-1 bg-black text-green-500 border border-green-700 p-2 text-xs font-mono uppercase focus:outline-none focus:border-green-400 rounded-sm">
+                        <option value="smear">SMEAR (I-FRAME)</option>
+                        <option value="transfer">MOTION (A→B)</option>
+                        <option value="transfer_rev">MOTION (B→A)</option>
+                        <option value="luma_wipe">LUMA KEY (A→B)</option>
+                        <option value="interlace">INTERLACE (A+B)</option>
+                        <option value="rgb">RGB OFFSET</option>
+                        <option value="sort">PIXEL SORT</option>
+                        <option value="slice">ROW SLICER</option>
+                        <option value="difference">DIFF GLITCH</option>
+                        <option value="noise">NOISE/GRAIN</option>
                     </select>
+                    <button id="addLayerBtn" class="px-3 border border-green-700 hover:bg-green-900/50 text-green-400 font-bold">+</button>
                 </div>
 
-                <!-- Secondary Upload (Mini) -->
-                <label id="bLabel" class="cursor-pointer p-2 border border-dashed border-green-700 hover:bg-green-900/30 rounded text-center min-w-[100px] transition-all" title="Upload 2nd Video">
-                    <span class="text-xs block text-gray-400">ADD SRC B</span>
-                    <i id="bIcon" data-lucide="plus" class="w-4 h-4 mx-auto mt-1"></i>
+                <label id="bLabel" class="cursor-pointer p-2 border border-dashed border-green-700 hover:bg-green-900/30 rounded text-center w-[80px] shrink-0 transition-all" title="Upload 2nd Video">
+                    <span class="text-[9px] block text-gray-400">SRC B</span>
+                    <i id="bIcon" data-lucide="plus" class="w-3 h-3 mx-auto"></i>
                     <input type="file" id="uploadB" accept="video/*" class="hidden">
                 </label>
             </div>
 
-            <!-- Dynamic Sliders -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Param 1 -->
-                <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span id="label1" class="uppercase text-green-400">Threshold (Stickiness)</span>
-                        <span id="val1" class="text-gray-400">50</span>
-                    </div>
-                    <input type="range" id="param1" min="1" max="100" value="15">
+            <!-- Layer List (Horizontal Scroll) -->
+            <div id="layerList" class="flex gap-2 overflow-x-auto layer-scroll pb-2 mb-3 min-h-[50px]">
+                <!-- Layers injected here -->
+            </div>
+
+            <!-- Parameters Area -->
+            <div class="border-t border-green-900/50 pt-3 flex-1 overflow-y-auto">
+                <div class="flex justify-between items-center mb-2">
+                    <span id="activeLayerName" class="text-xs font-bold text-green-400 bg-green-900/20 px-2 py-0.5 rounded">LAYER CONTROLS</span>
+                    <button id="removeLayerBtn" class="text-[10px] text-red-500 hover:text-red-400 border border-red-900 px-2 rounded">REMOVE LAYER</button>
                 </div>
 
-                <!-- Param 2 -->
-                <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span id="label2" class="uppercase text-green-400">Feedback (Decay)</span>
-                        <span id="val2" class="text-gray-400">0</span>
+                <!-- STANDARD CONTROLS -->
+                <div id="standardControls" class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span id="label1" class="uppercase text-green-400 font-bold truncate pr-2">Param 1</span>
+                            <span id="val1" class="text-gray-400 font-mono">0</span>
+                        </div>
+                        <input type="range" id="param1" min="0" max="100">
                     </div>
-                    <input type="range" id="param2" min="0" max="100" value="0">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span id="label2" class="uppercase text-green-400 font-bold truncate pr-2">Param 2</span>
+                            <span id="val2" class="text-gray-400 font-mono">0</span>
+                        </div>
+                        <input type="range" id="param2" min="0" max="100">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span id="label3" class="uppercase text-green-400 font-bold truncate pr-2">Param 3</span>
+                            <span id="val3" class="text-gray-400 font-mono">0</span>
+                        </div>
+                        <input type="range" id="param3" min="0" max="100">
+                    </div>
+                </div>
+
+                <!-- RGB CONTROLS -->
+                <div id="rgbControls" class="hidden">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex items-center justify-center shrink-0">
+                            <div class="bg-black border border-gray-800 p-1 relative">
+                                <canvas id="rgbVisualizer" width="80" height="80" class="border border-gray-800"></canvas>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 flex-1">
+                            <div>
+                                <div class="flex justify-between text-[10px] text-[#ff0055]"><span>R-X</span><span id="vRX">0</span></div>
+                                <input type="range" id="rx" min="-50" max="50" class="slider-r">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] text-[#ff0055]"><span>R-Y</span><span id="vRY">0</span></div>
+                                <input type="range" id="ry" min="-50" max="50" class="slider-r">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] text-[#00ff41]"><span>G-X</span><span id="vGX">0</span></div>
+                                <input type="range" id="gx" min="-50" max="50" class="slider-g">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] text-[#00ff41]"><span>G-Y</span><span id="vGY">0</span></div>
+                                <input type="range" id="gy" min="-50" max="50" class="slider-g">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] text-[#00ffff]"><span>B-X</span><span id="vBX">0</span></div>
+                                <input type="range" id="bx" min="-50" max="50" class="slider-b">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] text-[#00ffff]"><span>B-Y</span><span id="vBY">0</span></div>
+                                <input type="range" id="by" min="-50" max="50" class="slider-b">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Action Bar -->
-            <div class="flex gap-3">
+            <!-- Footer: Record -->
+            <div class="flex gap-3 mt-3 shrink-0">
                 <button id="recordBtn" class="flex-1 py-3 bg-red-900/20 border border-red-800 text-red-500 hover:bg-red-900/40 uppercase font-bold tracking-wider rounded-sm flex items-center justify-center gap-2 transition-all" disabled>
                     <div id="recDot" class="w-3 h-3 rounded-full bg-red-600"></div>
                     <span id="recText">REC OUTPUT</span>
                 </button>
-                <button id="snapBtn" class="px-4 border border-green-700 hover:bg-green-900/30 text-green-500 rounded-sm" disabled>
+                <button id="snapBtn" class="px-4 border border-green-700 hover:bg-green-900/30 text-green-500 rounded-sm transition-colors" disabled>
                     <i data-lucide="camera" class="w-5 h-5"></i>
                 </button>
             </div>
-
         </div>
     </main>
 
     <!-- Scripts -->
     <script>
-        // --- Init Lucide Icons ---
         lucide.createIcons();
 
         // --- Core Elements ---
@@ -230,420 +299,489 @@
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         
         // --- UI Elements ---
-        const uploadA = document.getElementById('uploadA');
-        const uploadB = document.getElementById('uploadB');
-        const bLabel = document.getElementById('bLabel');
-        const bIcon = document.getElementById('bIcon');
+        const standardControls = document.getElementById('standardControls');
+        const rgbControls = document.getElementById('rgbControls');
+        const layerList = document.getElementById('layerList');
+        const activeLayerName = document.getElementById('activeLayerName');
+        const visCanvas = document.getElementById('rgbVisualizer');
+        const visCtx = visCanvas.getContext('2d');
+
         const playBtn = document.getElementById('playBtn');
-        const modeSelect = document.getElementById('modeSelect');
-        const param1 = document.getElementById('param1');
-        const param2 = document.getElementById('param2');
-        const label1 = document.getElementById('label1');
-        const label2 = document.getElementById('label2');
-        const val1 = document.getElementById('val1');
-        const val2 = document.getElementById('val2');
+        const addLayerBtn = document.getElementById('addLayerBtn');
+        const removeLayerBtn = document.getElementById('removeLayerBtn');
+        const newLayerSelect = document.getElementById('newLayerSelect');
         const placeholderState = document.getElementById('placeholderState');
         const recordBtn = document.getElementById('recordBtn');
         const snapBtn = document.getElementById('snapBtn');
-        const recDot = document.getElementById('recDot');
-        const recText = document.getElementById('recText');
+
+        // Sliders
+        const param1 = document.getElementById('param1');
+        const param2 = document.getElementById('param2');
+        const param3 = document.getElementById('param3');
+        const label1 = document.getElementById('label1');
+        const label2 = document.getElementById('label2');
+        const label3 = document.getElementById('label3');
+        const val1 = document.getElementById('val1');
+        const val2 = document.getElementById('val2');
+        const val3 = document.getElementById('val3');
+
+        const rgbInputs = {
+            rx: document.getElementById('rx'), ry: document.getElementById('ry'),
+            gx: document.getElementById('gx'), gy: document.getElementById('gy'),
+            bx: document.getElementById('bx'), by: document.getElementById('by')
+        };
+        const rgbLabels = {
+            rx: document.getElementById('vRX'), ry: document.getElementById('vRY'),
+            gx: document.getElementById('vGX'), gy: document.getElementById('vGY'),
+            bx: document.getElementById('vBX'), by: document.getElementById('vBY')
+        };
+
+        // --- Config ---
+        const modeConfig = {
+            'smear': { name: 'Smear', l1: 'Thresh', l2: 'Decay', l3: 'Mosaic', def: [15, 0, 0] },
+            'transfer': { name: 'Motion A→B', l1: 'Sens', l2: 'Blend', l3: 'Luma Mask', def: [20, 100, 0] },
+            'transfer_rev': { name: 'Motion B→A', l1: 'Sens', l2: 'Blend', l3: 'A Opacity', def: [20, 100, 100] },
+            'luma_wipe': { name: 'Luma Key', l1: 'Thresh', l2: 'Softness', l3: 'Direction', def: [50, 10, 0] },
+            'interlace': { name: 'Interlace', l1: 'Height', l2: 'Scan', l3: 'Jitter', def: [4, 0, 0] },
+            'difference': { name: 'Diff Glitch', l1: 'Thresh', l2: 'Ghost', l3: 'Color', def: [25, 80, 0] },
+            'sort': { name: 'Sort', l1: 'Drift', l2: 'Thresh', l3: 'Dir', def: [10, 50, 0] },
+            'slice': { name: 'Slicer', l1: 'Chance', l2: 'Height', l3: 'Shift', def: [10, 20, 10] },
+            'rgb': { name: 'RGB Offset', type: 'rgb', def: {rx:0, ry:0, gx:0, gy:0, bx:0, by:0} },
+            'noise': { name: 'Noise', l1: 'Grain', l2: 'Interf', l3: 'V-Sync', def: [20, 5, 0] }
+        };
 
         // --- State ---
+        let layers = []; // Array of { id, type, params }
+        let selectedLayerId = null;
         let isPlaying = false;
         let animationId;
-        let currentMode = 'smear';
-        let processingWidth = 640; // Internal resolution (lower = faster + crunchier)
+        let processingWidth = 640; 
         let processingHeight = 360;
-        let previousFrameData = null; // Buffer for motion comparison
+        let previousFrameData = null; 
         let mediaRecorder;
         let recordedChunks = [];
         let isRecording = false;
 
-        // --- Configuration per Mode ---
-        const modes = {
-            'smear': {
-                label1: 'Mosh Threshold (Stickiness)',
-                label2: 'Color Crush (Bitrot)',
-                desc: "Classic Datamosh. High threshold makes pixels stick. Low makes them ghost."
-            },
-            'transfer': {
-                label1: 'Motion Sensitivity',
-                label2: 'Blend Strength',
-                desc: "Uses Video A's motion to paint Video B's pixels."
-            },
-            'difference': {
-                label1: 'Edge Threshold',
-                label2: 'Ghost Opacity',
-                desc: "Highlights changes between frames. Good for glitchy outlines."
-            },
-            'sort': {
-                label1: 'Drift Speed',
-                label2: 'Sort Threshold',
-                desc: "Pixels drift based on their brightness."
-            }
-        };
+        // --- Layer Management ---
+        function addLayer(type) {
+            const config = modeConfig[type];
+            const newId = Date.now() + Math.random().toString(36).substr(2, 9);
+            const params = config.type === 'rgb' ? {...config.def} : [...config.def];
+            
+            const layer = { id: newId, type: type, params: params };
+            layers.push(layer);
+            selectLayer(newId);
+            renderLayers();
+        }
 
-        // --- Initialization ---
+        function removeLayer(id) {
+            layers = layers.filter(l => l.id !== id);
+            if (selectedLayerId === id) {
+                selectedLayerId = layers.length > 0 ? layers[layers.length-1].id : null;
+            }
+            renderLayers();
+            updateControls();
+        }
+
+        function selectLayer(id) {
+            selectedLayerId = id;
+            renderLayers();
+            updateControls();
+        }
+
+        function renderLayers() {
+            layerList.innerHTML = '';
+            layers.forEach((layer, index) => {
+                const config = modeConfig[layer.type];
+                const div = document.createElement('div');
+                div.className = `min-w-[100px] p-2 border border-green-900 bg-gray-900 rounded cursor-pointer flex flex-col justify-between transition-all ${layer.id === selectedLayerId ? 'active-layer' : 'opacity-70 hover:opacity-100'}`;
+                
+                div.innerHTML = `
+                    <div class="text-[10px] text-gray-400 font-mono mb-1">#${index+1}</div>
+                    <div class="text-xs font-bold text-green-500 truncate">${config.name}</div>
+                `;
+                div.onclick = () => selectLayer(layer.id);
+                layerList.appendChild(div);
+            });
+        }
+
+        function updateControls() {
+            const layer = layers.find(l => l.id === selectedLayerId);
+            if (!layer) {
+                activeLayerName.textContent = "NO LAYER SELECTED";
+                standardControls.classList.add('hidden');
+                rgbControls.classList.add('hidden');
+                removeLayerBtn.disabled = true;
+                return;
+            }
+            
+            removeLayerBtn.disabled = false;
+            const config = modeConfig[layer.type];
+            activeLayerName.textContent = `${config.name.toUpperCase()} CONTROLS`;
+
+            if (config.type === 'rgb') {
+                standardControls.classList.add('hidden');
+                rgbControls.classList.remove('hidden');
+                
+                // Update inputs
+                Object.keys(rgbInputs).forEach(k => {
+                    rgbInputs[k].value = layer.params[k];
+                    rgbLabels[k].textContent = layer.params[k];
+                });
+                updateVisualizer(layer.params);
+            } else {
+                standardControls.classList.remove('hidden');
+                rgbControls.classList.add('hidden');
+
+                label1.textContent = config.l1;
+                label2.textContent = config.l2;
+                label3.textContent = config.l3;
+
+                param1.value = layer.params[0];
+                param2.value = layer.params[1];
+                param3.value = layer.params[2];
+
+                val1.textContent = layer.params[0];
+                val2.textContent = layer.params[1];
+                val3.textContent = layer.params[2];
+            }
+        }
+
+        // --- Event Listeners (UI) ---
+        addLayerBtn.onclick = () => addLayer(newLayerSelect.value);
+        removeLayerBtn.onclick = () => { if(selectedLayerId) removeLayer(selectedLayerId); };
+
+        [param1, param2, param3].forEach((p, idx) => {
+            p.oninput = (e) => {
+                const layer = layers.find(l => l.id === selectedLayerId);
+                if (layer && layer.type !== 'rgb') {
+                    layer.params[idx] = parseInt(e.target.value);
+                    [val1, val2, val3][idx].textContent = e.target.value;
+                }
+            };
+        });
+
+        Object.keys(rgbInputs).forEach(k => {
+            rgbInputs[k].oninput = (e) => {
+                const layer = layers.find(l => l.id === selectedLayerId);
+                if (layer && layer.type === 'rgb') {
+                    layer.params[k] = parseInt(e.target.value);
+                    rgbLabels[k].textContent = e.target.value;
+                    updateVisualizer(layer.params);
+                }
+            };
+        });
+
+        function updateVisualizer(p) {
+            const w = visCanvas.width;
+            const h = visCanvas.height;
+            const cx = w/2, cy = h/2;
+            visCtx.fillStyle = '#000'; visCtx.fillRect(0,0,w,h);
+            visCtx.strokeStyle = '#222'; visCtx.beginPath();
+            visCtx.moveTo(cx,0); visCtx.lineTo(cx,h); visCtx.moveTo(0,cy); visCtx.lineTo(w,cy); visCtx.stroke();
+            visCtx.globalCompositeOperation = 'screen';
+            const dot = (x,y,c) => {
+                visCtx.fillStyle = c; visCtx.beginPath();
+                visCtx.arc(cx + (x*0.6), cy + (y*0.6), 4, 0, Math.PI*2); visCtx.fill();
+            };
+            dot(p.rx, p.ry, '#ff0055');
+            dot(p.gx, p.gy, '#00ff41');
+            dot(p.bx, p.by, '#00ffff');
+            visCtx.globalCompositeOperation = 'source-over';
+        }
+
+        // --- Core Engine & Pipeline ---
         function initCanvas() {
             canvas.width = processingWidth;
             canvas.height = processingHeight;
-            // Fill with black initially
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Init Default Layer
+            addLayer('smear');
         }
-        initCanvas();
 
-        // --- File Handling ---
-        function handleVideoUpload(file, videoElement, isPrimary = false) {
-            if (!file) return;
-            const url = URL.createObjectURL(file);
-            videoElement.src = url;
-            videoElement.load();
-            
-            videoElement.onloadeddata = () => {
-                if (isPrimary) {
-                    // Adjust aspect ratio based on video A
-                    const aspect = videoElement.videoWidth / videoElement.videoHeight;
-                    processingHeight = processingWidth / aspect;
+        document.getElementById('uploadA').onchange = (e) => handleUpload(e.target.files[0], videoA, true);
+        document.getElementById('uploadB').onchange = (e) => handleUpload(e.target.files[0], videoB, false);
+
+        function handleUpload(file, vid, isPrimary) {
+            if(!file) return;
+            vid.src = URL.createObjectURL(file);
+            vid.load();
+            vid.onloadeddata = () => {
+                if(isPrimary) {
+                    const aspect = vid.videoWidth / vid.videoHeight;
+                    processingHeight = Math.floor(processingWidth / aspect);
                     canvas.width = processingWidth;
                     canvas.height = processingHeight;
-                    
                     placeholderState.classList.add('hidden');
-                    enableControls();
+                    playBtn.disabled = false;
+                    recordBtn.disabled = false;
+                    snapBtn.disabled = false;
+                    isPlaying = true;
+                    videoA.play();
+                    if(videoB.readyState>=2) videoB.play();
                     startLoop();
                 } else {
-                    // Fix for Source B: UI Feedback and Auto-Play sync
-                    bLabel.classList.remove('border-green-700', 'border-dashed');
-                    bLabel.classList.add('bg-green-600', 'text-black', 'border-solid', 'border-green-500');
-                    bLabel.querySelector('span').textContent = "SRC B READY";
-                    bIcon.setAttribute('data-lucide', 'check');
+                    document.getElementById('bLabel').classList.add('bg-green-600', 'text-black', 'border-solid');
+                    document.getElementById('bIcon').setAttribute('data-lucide', 'check');
                     lucide.createIcons();
-
-                    // If main loop is running, ensure B plays too
-                    if(isPlaying) {
-                        videoElement.play();
-                    }
+                    if(isPlaying) vid.play();
                 }
             };
         }
 
-        uploadA.addEventListener('change', (e) => handleVideoUpload(e.target.files[0], videoA, true));
-        uploadB.addEventListener('change', (e) => handleVideoUpload(e.target.files[0], videoB, false));
-
-        function enableControls() {
-            playBtn.disabled = false;
-            recordBtn.disabled = false;
-            snapBtn.disabled = false;
-            playBtn.innerHTML = '<i data-lucide="pause" class="w-6 h-6 fill-current"></i>';
-            lucide.createIcons();
-            
-            videoA.play();
-            // Try playing B if it exists
-            if(videoB.readyState >= 2) videoB.play();
-            
-            isPlaying = true;
-        }
-
-        // --- Playback Controls ---
-        playBtn.addEventListener('click', () => {
-            if (isPlaying) {
+        playBtn.onclick = () => {
+            if(isPlaying) {
                 videoA.pause();
-                if(videoB.src && videoB.readyState >= 2) videoB.pause();
-                playBtn.innerHTML = '<i data-lucide="play" class="w-6 h-6 fill-current"></i>';
+                if(videoB.src) videoB.pause();
+                playBtn.innerHTML = '<i data-lucide="play" class="w-5 h-5 fill-current"></i>';
                 cancelAnimationFrame(animationId);
             } else {
                 videoA.play();
-                if(videoB.src && videoB.readyState >= 2) videoB.play();
-                playBtn.innerHTML = '<i data-lucide="pause" class="w-6 h-6 fill-current"></i>';
+                if(videoB.src) videoB.play();
+                playBtn.innerHTML = '<i data-lucide="pause" class="w-5 h-5 fill-current"></i>';
                 loop();
             }
             lucide.createIcons();
             isPlaying = !isPlaying;
-        });
+        };
 
-        // --- UI Updates ---
-        modeSelect.addEventListener('change', (e) => {
-            currentMode = e.target.value;
-            updateLabels();
-            // Reset buffer on mode change
-            previousFrameData = null;
-        });
-
-        function updateLabels() {
-            const m = modes[currentMode];
-            label1.textContent = m.label1;
-            label2.textContent = m.label2;
-        }
-
-        [param1, param2].forEach(p => {
-            p.addEventListener('input', () => {
-                val1.textContent = param1.value;
-                val2.textContent = param2.value;
-            });
-        });
-
-        // --- Core Engine: The Pixel Loop ---
         function loop() {
-            if (!isPlaying) return;
-            processFrame();
+            if(!isPlaying) return;
+            processPipeline();
             animationId = requestAnimationFrame(loop);
         }
+        function startLoop() { if(animationId) cancelAnimationFrame(animationId); loop(); }
 
-        function startLoop() {
-            if(animationId) cancelAnimationFrame(animationId);
-            loop();
-        }
-
-        // --- EFFECT ALGORITHMS ---
-
-        function processFrame() {
-            // Safety check
+        // *** THE PIPELINE ***
+        function processPipeline() {
             if (videoA.readyState < 2) return;
-
             const w = canvas.width;
             const h = canvas.height;
 
-            // 1. Get Current Frame Data from Source A
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = w;
-            tempCanvas.height = h;
-            const tempCtx = tempCanvas.getContext('2d');
+            // 1. Get Inputs
+            const tempC = document.createElement('canvas');
+            tempC.width = w; tempC.height = h;
+            const tempCtx = tempC.getContext('2d');
             
             tempCtx.drawImage(videoA, 0, 0, w, h);
             const frameA = tempCtx.getImageData(0, 0, w, h);
-
-            // Get Frame B if exists (Ensure it's actually loaded)
+            
             let frameB = null;
             if (videoB.readyState >= 2 && !videoB.paused) {
                 tempCtx.drawImage(videoB, 0, 0, w, h);
                 frameB = tempCtx.getImageData(0, 0, w, h);
             } else if (videoB.readyState >= 2 && isPlaying) {
-                // Force play catchup if engine is running but B is paused
                 videoB.play();
                 tempCtx.drawImage(videoB, 0, 0, w, h);
                 frameB = tempCtx.getImageData(0, 0, w, h);
             }
 
-            // 2. Get Previous Canvas State (The "History")
+            // 2. Prepare History
             if (!previousFrameData) {
                 ctx.putImageData(frameA, 0, 0);
-                previousFrameData = ctx.getImageData(0, 0, w, h);
+                previousFrameData = ctx.getImageData(0,0,w,h);
                 return;
             }
 
-            const currentCanvasData = ctx.getImageData(0, 0, w, h);
-            const output = ctx.createImageData(w, h); 
+            // 3. Chain Layers
+            // We start with the CURRENT CANVAS STATE (Feedback Loop) as the base
+            // But some effects might want pure video. 
+            // Standard datamosh = Previous Canvas + Current Motion.
             
-            // Parameters
-            const p1 = parseInt(param1.value); 
-            const p2 = parseInt(param2.value); 
+            // For the pipeline:
+            // Input 1: The result of the PREVIOUS frame (on canvas now).
+            // Input 2: The raw video frames (for motion reference).
             
-            const dataA = frameA.data;
-            const dataPrev = previousFrameData.data; 
-            const dataCanvas = currentCanvasData.data; 
-            const dest = output.data;
-
-            // --- ALGORITHM SWITCHER ---
-
-            if (currentMode === 'smear') {
-                // *** I-FRAME KILL (SMEAR) ***
-                const threshold = p1 * 1.5; 
-                const crush = p2; 
-
-                for (let i = 0; i < dataA.length; i += 4) {
-                    const diff = Math.abs(dataA[i] - dataPrev[i]) + 
-                                 Math.abs(dataA[i+1] - dataPrev[i+1]) + 
-                                 Math.abs(dataA[i+2] - dataPrev[i+2]);
-
-                    if (diff > threshold) {
-                        dest[i] = dataA[i];
-                        dest[i+1] = dataA[i+1];
-                        dest[i+2] = dataA[i+2];
-                        dest[i+3] = 255;
-                    } else {
-                        // Sticky persistence
-                        if (crush > 0 && Math.random() * 100 < 5) {
-                            dest[i] = dataCanvas[i] + (Math.random() - 0.5) * crush;
-                            dest[i+1] = dataCanvas[i+1] + (Math.random() - 0.5) * crush;
-                            dest[i+2] = dataCanvas[i+2] + (Math.random() - 0.5) * crush;
-                        } else {
-                            dest[i] = dataCanvas[i];
-                            dest[i+1] = dataCanvas[i+1];
-                            dest[i+2] = dataCanvas[i+2];
-                        }
-                        dest[i+3] = 255;
-                    }
-                }
-
-            } else if (currentMode === 'transfer') {
-                // *** MOTION TRANSFER ***
-                // Fallback to A if B is missing
-                const source2 = frameB ? frameB.data : dataA;
-                const sensitivity = (100 - p1) * 3; 
-
-                for (let i = 0; i < dataA.length; i += 4) {
-                     const diff = Math.abs(dataA[i] - dataPrev[i]) + 
-                                 Math.abs(dataA[i+1] - dataPrev[i+1]) + 
-                                 Math.abs(dataA[i+2] - dataPrev[i+2]);
-
-                    if (diff > sensitivity) {
-                        dest[i] = source2[i];
-                        dest[i+1] = source2[i+1];
-                        dest[i+2] = source2[i+2];
-                    } else {
-                        dest[i] = dataCanvas[i]; 
-                        dest[i+1] = dataCanvas[i+1];
-                        dest[i+2] = dataCanvas[i+2];
-                    }
-                    dest[i+3] = 255;
-                }
-
-            } else if (currentMode === 'difference') {
-                 // *** DIFFERENCE GLITCH ***
-                 const thresh = p1;
-                 
-                 for (let i = 0; i < dataA.length; i += 4) {
-                    const rD = Math.abs(dataA[i] - dataPrev[i]);
-                    const gD = Math.abs(dataA[i+1] - dataPrev[i+1]);
-                    const bD = Math.abs(dataA[i+2] - dataPrev[i+2]);
-
-                    if ((rD+gD+bD) > thresh) {
-                        dest[i] = dataA[i];
-                        dest[i+1] = dataA[i+1];
-                        dest[i+2] = dataA[i+2];
-                    } else {
-                        dest[i] = dataCanvas[i] - 1; 
-                        dest[i+1] = dataCanvas[i+1] - 5; 
-                        dest[i+2] = dataCanvas[i+2] - 1; 
-                    }
-                    dest[i+3] = 255;
-                 }
-            } else if (currentMode === 'sort') {
-                // *** PIXEL DRAG / SORT ***
-                const drift = Math.floor(p1 / 5); 
-                const brightThresh = p2 * 2.55;
+            let currentCanvas = ctx.getImageData(0,0,w,h);
+            
+            // We'll create a buffer that gets updated by each layer
+            // Ideally we'd ping-pong, but for simplicity we modify 'currentCanvas' data directly or write to 'output'
+            
+            let buffer = new Uint8ClampedArray(currentCanvas.data); 
+            // We need a scratch buffer to write into for each layer so we don't read/write same pixels in sorting/shifting
+            
+            layers.forEach(layer => {
+                const outputData = new Uint8ClampedArray(buffer); // Copy input for this stage
+                const p = layer.params;
                 
-                for (let y = 0; y < h; y++) {
-                    for (let x = 0; x < w; x++) {
-                        const idx = (y * w + x) * 4;
-                        const bright = (dataA[idx] + dataA[idx+1] + dataA[idx+2]) / 3;
+                // Helper vars
+                const dA = frameA.data;
+                const dP = previousFrameData.data;
+                const dC = buffer; // Input for this layer (result of prev layer)
+                const dOut = outputData; // Output for this layer
 
-                        if (bright > brightThresh) {
-                            const offY = Math.max(0, y - drift);
-                            const offIdx = (offY * w + x) * 4;
+                // Execute Algos
+                if (layer.type === 'smear') {
+                    const thresh = p[0] * 1.5;
+                    const crush = p[1];
+                    const blockSize = Math.max(1, Math.floor(p[2]/3));
+
+                    for (let y=0; y<h; y++) {
+                        for (let x=0; x<w; x++) {
+                            const i = (y*w+x)*4;
+                            let rx = blockSize>1 ? x-(x%blockSize) : x;
+                            let ry = blockSize>1 ? y-(y%blockSize) : y;
+                            let ri = (ry*w+rx)*4;
+
+                            const diff = Math.abs(dA[ri]-dP[ri]) + Math.abs(dA[ri+1]-dP[ri+1]) + Math.abs(dA[ri+2]-dP[ri+2]);
                             
-                            dest[idx] = dataCanvas[offIdx];
-                            dest[idx+1] = dataCanvas[offIdx+1];
-                            dest[idx+2] = dataCanvas[offIdx+2];
-                        } else {
-                            dest[idx] = dataA[idx];
-                            dest[idx+1] = dataA[idx+1];
-                            dest[idx+2] = dataA[idx+2];
+                            if (diff > thresh) {
+                                dOut[i]=dA[ri]; dOut[i+1]=dA[ri+1]; dOut[i+2]=dA[ri+2];
+                            } else {
+                                if (crush > 0 && Math.random()*100 < 5) {
+                                    const n = (Math.random()-0.5)*crush;
+                                    dOut[i]=dC[i]+n; dOut[i+1]=dC[i+1]+n; dOut[i+2]=dC[i+2]+n;
+                                } else {
+                                    dOut[i]=dC[i]; dOut[i+1]=dC[i+1]; dOut[i+2]=dC[i+2];
+                                }
+                            }
+                            dOut[i+3]=255;
                         }
-                        dest[idx+3] = 255;
                     }
                 }
-            }
-
-            // 3. Render
-            ctx.putImageData(output, 0, 0);
-
-            // 4. Update History
-            previousFrameData = frameA; 
-        }
-
-        // --- Recording Logic ---
-        recordBtn.addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
-        });
-
-        function startRecording() {
-            const stream = canvas.captureStream(30);
-            const options = { mimeType: 'video/webm;codecs=vp9' };
-            
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                options.mimeType = 'video/webm'; 
-                if(!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'video/mp4'; 
+                else if (layer.type === 'transfer' || layer.type === 'transfer_rev') {
+                    const sensitivity = (100 - p[0]) * 3;
+                    const isRev = layer.type === 'transfer_rev';
+                    const src2 = frameB ? frameB.data : (isRev ? null : dA); // If rev and no B, skip
+                    
+                    if (isRev && !src2) {
+                        // Pass through if B missing in B->A mode
+                    } else {
+                        const sourcePix = isRev ? dA : src2; // What paint with?
+                        
+                        for (let i=0; i<dA.length; i+=4) {
+                            // Motion calc always based on A vs Prev A? Or B vs Prev B?
+                            // Standard transfer: A motion reveals B.
+                            // Rev transfer: A motion reveals A (over B)? No, user wants stack.
+                            // Let's stick to: Motion of A reveals B pixels.
+                            
+                            const diff = Math.abs(dA[i]-dP[i]) + Math.abs(dA[i+1]-dP[i+1]) + Math.abs(dA[i+2]-dP[i+2]);
+                            
+                            if (diff > sensitivity) {
+                                dOut[i]=sourcePix[i]; dOut[i+1]=sourcePix[i+1]; dOut[i+2]=sourcePix[i+2];
+                            } else {
+                                dOut[i]=dC[i]; dOut[i+1]=dC[i+1]; dOut[i+2]=dC[i+2];
+                            }
+                            dOut[i+3]=255;
+                        }
+                    }
                 }
-            }
+                else if (layer.type === 'rgb') {
+                    const rx=p.rx, ry=p.ry, gx=p.gx, gy=p.gy, bx=p.bx, by=p.by;
+                    for (let y=0; y<h; y++) {
+                        for (let x=0; x<w; x++) {
+                            const i = (y*w+x)*4;
+                            // Read from dC (current buffer)
+                            const getIdx = (xx, yy) => {
+                                xx = Math.min(Math.max(xx,0), w-1);
+                                yy = Math.min(Math.max(yy,0), h-1);
+                                return (yy*w+xx)*4;
+                            };
+                            dOut[i]   = dC[getIdx(x+rx, y+ry)];     // R
+                            dOut[i+1] = dC[getIdx(x+gx, y+gy)+1];   // G
+                            dOut[i+2] = dC[getIdx(x+bx, y+by)+2];   // B
+                            dOut[i+3] = 255;
+                        }
+                    }
+                }
+                else if (layer.type === 'slice') {
+                     const chance=p[0], height=Math.max(1, p[1]), amp=p[2]*2;
+                     let shift=0, rem=0;
+                     for (let y=0; y<h; y++) {
+                        if(rem<=0) {
+                            if(Math.random()*100 < chance) { rem=Math.random()*height; shift=(Math.random()-0.5)*amp; }
+                            else shift=0;
+                        } else rem--;
+                        for (let x=0; x<w; x++) {
+                            let sx = x+shift;
+                            if(sx<0) sx+=w; if(sx>=w) sx-=w;
+                            // Safe index
+                            sx = Math.min(Math.max(Math.floor(sx),0), w-1);
+                            const i=(y*w+x)*4; const si=(y*w+sx)*4;
+                            dOut[i]=dC[si]; dOut[i+1]=dC[si+1]; dOut[i+2]=dC[si+2]; dOut[i+3]=255;
+                        }
+                     }
+                }
+                else if (layer.type === 'noise') {
+                    const grain=p[0], interf=p[1], roll=Math.floor(Math.random()*p[2]);
+                    for (let y=0; y<h; y++) {
+                        let sy = (y+roll)%h;
+                        let isLine = Math.random()*100 < interf;
+                        for (let x=0; x<w; x++) {
+                            const i=(y*w+x)*4; const si=(sy*w+x)*4;
+                            if(isLine) { dOut[i]=Math.random()*255; dOut[i+1]=Math.random()*255; dOut[i+2]=Math.random()*255; }
+                            else {
+                                const n = (Math.random()-0.5)*grain;
+                                dOut[i]=dC[si]+n; dOut[i+1]=dC[si+1]+n; dOut[i+2]=dC[si+2]+n;
+                            }
+                            dOut[i+3]=255;
+                        }
+                    }
+                }
+                else if (layer.type === 'difference') {
+                    const thresh=p[0], hue=p[2]*2;
+                    for (let i=0; i<dA.length; i+=4) {
+                        const diff = Math.abs(dA[i]-dP[i]) + Math.abs(dA[i+1]-dP[i+1]) + Math.abs(dA[i+2]-dP[i+2]);
+                        if (diff > thresh) {
+                            dOut[i]=dA[i]; dOut[i+1]=dA[i+1]; dOut[i+2]=dA[i+2];
+                        } else {
+                            if(hue<50) { dOut[i]=dC[i]-1; dOut[i+1]=dC[i+1]-5; dOut[i+2]=dC[i+2]-1; }
+                            else { dOut[i]=dC[i+1]-1; dOut[i+1]=dC[i+2]-5; dOut[i+2]=dC[i]-1; }
+                        }
+                        dOut[i+3]=255;
+                    }
+                }
 
-            try {
-                mediaRecorder = new MediaRecorder(stream, options);
-            } catch (e) {
-                alert("Recorder not supported on this browser/device.");
-                return;
-            }
+                // Update buffer for next layer
+                buffer = outputData;
+            });
 
-            recordedChunks = [];
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) recordedChunks.push(e.data);
-            };
+            // Write final buffer
+            currentCanvas.data.set(buffer);
+            ctx.putImageData(currentCanvas, 0, 0);
 
-            mediaRecorder.onstop = exportVideo;
-
-            mediaRecorder.start();
-            isRecording = true;
-            
-            // UI Update
-            recordBtn.classList.remove('text-red-500', 'bg-red-900/20');
-            recordBtn.classList.add('bg-red-600', 'text-white');
-            recDot.classList.add('animate-ping', 'bg-white');
-            recText.textContent = "STOP REC";
+            // Update history
+            previousFrameData = frameA;
         }
 
-        function stopRecording() {
-            mediaRecorder.stop();
-            isRecording = false;
-            
-            // UI Update
-            recordBtn.classList.add('text-red-500', 'bg-red-900/20');
-            recordBtn.classList.remove('bg-red-600', 'text-white');
-            recDot.classList.remove('animate-ping', 'bg-white');
-            recText.textContent = "REC OUTPUT";
-        }
-
-        function exportVideo() {
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
+        // --- Rec/Snap ---
+        recordBtn.onclick = () => {
+            if(isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                recordBtn.classList.remove('bg-red-600', 'text-white');
+                recordBtn.classList.add('bg-red-900/20', 'text-red-500');
+                recDot.classList.remove('animate-ping', 'bg-white');
+                recText.textContent = "REC OUTPUT";
+            } else {
+                const stream = canvas.captureStream(30);
+                mediaRecorder = new MediaRecorder(stream, {mimeType: 'video/webm'});
+                recordedChunks = [];
+                mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, {type:'video/webm'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `datamosh_${Date.now()}.webm`;
+                    a.click();
+                    recordBtn.innerHTML = "SAVED!";
+                    setTimeout(() => recordBtn.innerHTML=`<div id="recDot" class="w-3 h-3 rounded-full bg-red-600"></div><span id="recText">REC OUTPUT</span>`, 2000);
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                recordBtn.classList.add('bg-red-600', 'text-white');
+                recDot.classList.add('animate-ping', 'bg-white');
+                recText.textContent = "STOP REC";
+            }
+        };
+        snapBtn.onclick = () => {
             const a = document.createElement('a');
-            const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,"");
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `datamosh_${timestamp}.webm`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            
-            const btnText = recordBtn.innerHTML;
-            recordBtn.innerHTML = "SAVED!";
-            setTimeout(() => {
-                recordBtn.innerHTML = `
-                    <div id="recDot" class="w-3 h-3 rounded-full bg-red-600"></div>
-                    <span id="recText">REC OUTPUT</span>
-                `;
-            }, 2000);
-        }
-
-        // --- Snapshot Logic ---
-        snapBtn.addEventListener('click', () => {
-            const link = document.createElement('a');
-            link.download = 'datamosh_snap.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        });
-
-        // --- Help Modal Logic ---
-        document.getElementById('helpBtn').addEventListener('click', () => {
-            alert("GUIDE:\n1. Upload a video (Source A).\n2. Upload Source B for blend effects.\n3. Mode 'Smear' = Classic I-Frame Kill.\n4. Mode 'Transfer' = Use Source A's motion to paint Source B.\n5. Adjust sliders to break the codec.");
-        });
-
+            a.download = 'datamosh_snap.png'; a.href = canvas.toDataURL(); a.click();
+        };
+        document.getElementById('helpBtn').onclick = () => alert("LAYERS GUIDE:\n1. 'Smear' is your base. Keep it at the top.\n2. Add 'RGB' or 'Slicer' layers below for post-fx.\n3. Stack multiple 'Motion' layers for complex blends.\n4. Click a layer in the list to edit its sliders.");
+        
+        initCanvas();
     </script>
 </body>
 </html>
-
-
