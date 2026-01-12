@@ -136,6 +136,19 @@
         .toggle-checkbox:checked + .toggle-label {
             background-color: #68D391;
         }
+        
+        /* Dropdown Optgroups */
+        optgroup {
+            background: #111;
+            color: #888;
+            font-style: normal;
+            font-weight: bold;
+        }
+        option {
+            background: #000;
+            color: var(--neon-green);
+            padding: 4px;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -147,7 +160,14 @@
             <h1 class="text-2xl font-bold tracking-tighter glitch-text" data-text="DATAMOSH">DATAMOSH</h1>
         </div>
         <div class="flex gap-2">
-            <button id="helpBtn" class="p-2 border border-green-900 hover:bg-green-900/30 rounded text-xs transition-colors">GUIDE</button>
+            <button id="saveBtn" class="p-2 border border-green-900 hover:bg-green-900/30 text-green-400 rounded text-xs transition-colors flex items-center gap-1">
+                <i data-lucide="save" class="w-3 h-3"></i> SAVE
+            </button>
+            <label class="p-2 border border-green-900 hover:bg-green-900/30 text-green-400 rounded text-xs transition-colors cursor-pointer flex items-center gap-1">
+                <i data-lucide="folder-open" class="w-3 h-3"></i> LOAD
+                <input type="file" id="loadInput" accept=".json" class="hidden">
+            </label>
+            <button id="helpBtn" class="p-2 border border-green-900 hover:bg-green-900/30 rounded text-xs transition-colors ml-2">GUIDE</button>
         </div>
     </header>
 
@@ -168,13 +188,15 @@
                     <span class="inline-block px-1.5 py-0.5 border border-solid border-green-700 bg-green-900/20 text-green-400 font-bold text-[10px] rounded-sm">SRC A</span> 
                     and 
                     <span class="inline-block px-1.5 py-0.5 border border-dashed border-green-700 text-gray-400 text-[10px] rounded-sm">SRC B</span>.
-                    Effects like "Motion Transfer" blend them together.
+                    Effects under "DUAL SOURCE" blend them together.
                 </p>
                 
                 <p class="flex flex-wrap items-center gap-2">
-                    <span class="text-green-500 font-bold">3. TWEAK:</span> Click any layer to reveal its 
-                    <span class="inline-block px-1.5 py-0.5 bg-green-900/20 text-green-400 font-bold text-[10px] rounded-sm border border-green-900/30">CONTROLS</span> 
-                    below. Adjust sliders to destroy the footage.
+                    <span class="text-green-500 font-bold">3. PRESETS:</span> Use 
+                    <span class="inline-block px-1.5 py-0.5 border border-green-900 bg-green-900/10 text-green-400 font-bold text-[10px] rounded-sm">SAVE</span>
+                    and
+                    <span class="inline-block px-1.5 py-0.5 border border-green-900 bg-green-900/10 text-green-400 font-bold text-[10px] rounded-sm">LOAD</span>
+                    to share your layer stacks.
                 </p>
             </div>
 
@@ -222,19 +244,23 @@
                 <!-- Combined Add Layer Group -->
                 <div class="flex-1 flex items-stretch">
                     <select id="newLayerSelect" class="flex-1 bg-black text-green-500 border border-green-700 border-r-0 p-2 text-xs font-mono uppercase focus:outline-none focus:border-green-400 rounded-l-sm rounded-r-none">
-                        <option value="smear">SMEAR (I-FRAME)</option>
-                        <option value="quantize">QUANTIZE (ALIASING)</option>
-                        <option value="drift">VECTOR DRIFT</option>
-                        <option value="freeze">FREEZE ZONE</option>
-                        <option value="echo">VECTOR ECHO</option>
-                        <option value="transfer">MOTION TRANSFER</option>
-                        <option value="luma_wipe">LUMA WIPE</option>
-                        <option value="interlace">INTERLACE</option>
-                        <option value="rgb">RGB OFFSET</option>
-                        <option value="sort">PIXEL SORT</option>
-                        <option value="slice">ROW SLICER</option>
-                        <option value="difference">DIFF GLITCH</option>
-                        <option value="noise">NOISE/GRAIN</option>
+                        <optgroup label="DUAL SOURCE (A + B)">
+                            <option value="transfer">MOTION TRANSFER</option>
+                            <option value="luma_wipe">LUMA WIPE</option>
+                            <option value="interlace">INTERLACE</option>
+                        </optgroup>
+                        <optgroup label="SINGLE SOURCE FX">
+                            <option value="smear">SMEAR (I-FRAME)</option>
+                            <option value="quantize">QUANTIZE (ALIASING)</option>
+                            <option value="drift">VECTOR DRIFT</option>
+                            <option value="freeze">FREEZE ZONE</option>
+                            <option value="echo">VECTOR ECHO</option>
+                            <option value="rgb">RGB OFFSET</option>
+                            <option value="sort">PIXEL SORT</option>
+                            <option value="slice">ROW SLICER</option>
+                            <option value="difference">DIFF GLITCH</option>
+                            <option value="noise">NOISE/GRAIN</option>
+                        </optgroup>
                     </select>
                     <button id="addLayerBtn" class="px-3 border border-green-700 hover:bg-green-900/50 text-green-400 font-bold rounded-r-sm rounded-l-none border-l-0 bg-green-900/10">+</button>
                 </div>
@@ -388,6 +414,8 @@
         const snapBtn = document.getElementById('snapBtn');
         const helpBtn = document.getElementById('helpBtn');
         const guideOverlay = document.getElementById('guideOverlay');
+        const saveBtn = document.getElementById('saveBtn');
+        const loadInput = document.getElementById('loadInput');
 
         // Sliders
         const param1 = document.getElementById('param1');
@@ -412,7 +440,6 @@
         };
 
         // --- Config ---
-        // def array is now [p1, p2, p3, dir(0=A->B, 1=B->A)]
         const modeConfig = {
             'smear': { name: 'Smear', l1: 'Thresh', l2: 'Decay', l3: 'Mosaic', def: [15, 0, 0, 0], hasDir: false },
             'quantize': { name: 'Quantize', l1: 'Block Size', l2: 'Thresh', l3: 'Crush', def: [20, 15, 0, 0], hasDir: false },
@@ -576,6 +603,42 @@
         addLayerBtn.onclick = () => addLayer(newLayerSelect.value);
         removeLayerBtn.onclick = () => { if(selectedLayerId) removeLayer(selectedLayerId); };
         helpBtn.onclick = () => guideOverlay.classList.remove('hidden');
+
+        // Save & Load
+        saveBtn.onclick = () => {
+            const dataStr = JSON.stringify(layers, null, 2);
+            const blob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `datamosh_preset_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        loadInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const loadedLayers = JSON.parse(ev.target.result);
+                    if (Array.isArray(loadedLayers)) {
+                        layers = loadedLayers;
+                        // Reset selection
+                        selectedLayerId = layers.length > 0 ? layers[0].id : null;
+                        renderLayers();
+                        updateControls();
+                    } else {
+                        alert("Invalid preset file.");
+                    }
+                } catch(err) {
+                    alert("Error loading file.");
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = ''; // Reset input
+        };
 
         dirWrapper.onclick = () => {
             const layer = layers.find(l => l.id === selectedLayerId);
@@ -761,21 +824,17 @@
                     }
                 }
                 else if (layer.type === 'quantize') {
-                    // NEW MODE: Quantize (Motion Quantization / Aliasing)
-                    // Logic: Process frames in larger blocks.
-                    const blockSize = Math.max(1, p[0]); // Size of quantization block
+                    const blockSize = Math.max(1, p[0]); 
                     const thresh = p[1] * 1.5;
                     const crush = p[2];
 
                     for (let y = 0; y < h; y += blockSize) {
                         for (let x = 0; x < w; x += blockSize) {
-                            // Calc average motion or just use top-left of block
                             const i = (y*w+x)*4;
                             const diff = Math.abs(dA[i]-dP[i]) + Math.abs(dA[i+1]-dP[i+1]) + Math.abs(dA[i+2]-dP[i+2]);
                             
                             let updateBlock = diff > thresh;
                             
-                            // Fill block
                             for (let by = 0; by < blockSize; by++) {
                                 for (let bx = 0; bx < blockSize; bx++) {
                                     if (y+by >= h || x+bx >= w) continue;
@@ -784,7 +843,6 @@
                                     if (updateBlock) {
                                         dOut[bi]=dA[bi]; dOut[bi+1]=dA[bi+1]; dOut[bi+2]=dA[bi+2]; dOut[bi+3]=255;
                                     } else {
-                                        // Use previous buffer value (Stick)
                                         if (crush > 0 && Math.random()*100 < 2) {
                                             const n = (Math.random()-0.5)*crush;
                                             dOut[bi]=dC[bi]+n; dOut[bi+1]=dC[bi+1]+n; dOut[bi+2]=dC[bi+2]+n;
@@ -799,31 +857,23 @@
                     }
                 }
                 else if (layer.type === 'drift') {
-                    // NEW MODE: Drift (Vector Drift)
-                    // Logic: Constant offset applied to buffer + standard refresh
-                    const sx = Math.floor((p[0]-50) * 0.5); // Speed X
-                    const sy = Math.floor((p[1]-50) * 0.5); // Speed Y
+                    const sx = Math.floor((p[0]-50) * 0.5); 
+                    const sy = Math.floor((p[1]-50) * 0.5); 
                     const noise = p[2];
 
                     for (let y = 0; y < h; y++) {
                         for (let x = 0; x < w; x++) {
                             const i = (y*w+x)*4;
-                            // Check video motion first (to refresh pixels)
                             const diff = Math.abs(dA[i]-dP[i]) + Math.abs(dA[i+1]-dP[i+1]) + Math.abs(dA[i+2]-dP[i+2]);
                             
-                            if (diff > 40) { // Hardcoded refresh thresh for drift stability
+                            if (diff > 40) { 
                                 dOut[i] = dA[i]; dOut[i+1] = dA[i+1]; dOut[i+2] = dA[i+2];
                             } else {
-                                // Drift: Read buffer from offset coords
                                 let ox = x - sx;
                                 let oy = y - sy;
-                                
-                                // Wrap coords? or Clamp? Clamp looks smearier.
                                 ox = Math.min(Math.max(ox, 0), w-1);
                                 oy = Math.min(Math.max(oy, 0), h-1);
-                                
                                 const oi = (oy*w+ox)*4;
-                                
                                 dOut[i] = dC[oi]; dOut[i+1] = dC[oi+1]; dOut[i+2] = dC[oi+2];
                                 
                                 if (noise > 0 && Math.random()*100 < 1) {
@@ -835,7 +885,6 @@
                     }
                 }
                 else if (layer.type === 'freeze') {
-                    // NEW MODE: Freeze (Vector Freeze Zones)
                     const radius = (p[0] / 100) * (h/2);
                     const feather = p[1];
                     const invert = p[2] > 50;
@@ -846,16 +895,12 @@
                         for (let x = 0; x < w; x++) {
                             const i = (y*w+x)*4;
                             const dist = Math.sqrt((x-cx)*(x-cx) + (y-cy)*(y-cy));
-                            
                             let isFrozen = dist < radius;
                             if (invert) isFrozen = !isFrozen;
 
                             if (isFrozen) {
-                                // Force Freeze: Keep buffer
                                 dOut[i] = dC[i]; dOut[i+1] = dC[i+1]; dOut[i+2] = dC[i+2];
                             } else {
-                                // Normal update (Pass through A)
-                                // Or should it be Smear? Let's make it standard video pass-through for contrast.
                                 dOut[i] = dA[i]; dOut[i+1] = dA[i+1]; dOut[i+2] = dA[i+2];
                             }
                             dOut[i+3] = 255;
@@ -863,41 +908,32 @@
                     }
                 }
                 else if (layer.type === 'echo') {
-                    // NEW MODE: Echo (Vector Echo)
-                    const decay = p[0] / 100; // Blend amount
-                    const offset = Math.floor(p[1] / 5); // Shift
-                    const thresh = p[2] * 2; // Motion thresh to generate echo
+                    const decay = p[0] / 100; 
+                    const offset = Math.floor(p[1] / 5); 
+                    const thresh = p[2] * 2; 
 
                     for (let y = 0; y < h; y++) {
                         for (let x = 0; x < w; x++) {
                             const i = (y*w+x)*4;
-                            
-                            // Blend current video A with Buffer
-                            // dOut = VideoA * (1-decay) + Buffer * decay
-                            
                             let r, g, b;
-                            
-                            // Simple Echo
                             r = dA[i] * (1-decay) + dC[i] * decay;
                             g = dA[i+1] * (1-decay) + dC[i+1] * decay;
                             b = dA[i+2] * (1-decay) + dC[i+2] * decay;
-                            
                             dOut[i] = r; dOut[i+1] = g; dOut[i+2] = b; dOut[i+3] = 255;
                         }
                     }
                 }
                 else if (layer.type === 'transfer') {
                     const sensitivity = (100 - p[0]) * 3;
-                    const isRev = p[3] === 1; // Direction Switch
+                    const isRev = p[3] === 1; 
                     
-                    const srcDriver = isRev ? (frameB ? frameB.data : dA) : dA; // If B->A, driver is B (if exists)
-                    const srcPaint  = isRev ? dA : (frameB ? frameB.data : dA); // If B->A, paint is A
+                    const srcDriver = isRev ? (frameB ? frameB.data : dA) : dA; 
+                    const srcPaint  = isRev ? dA : (frameB ? frameB.data : dA); 
                     
                     const paintSource = isRev ? dA : (frameB ? frameB.data : dA); 
 
                     for (let i=0; i<dA.length; i+=4) {
                         const diff = Math.abs(dA[i]-dP[i]) + Math.abs(dA[i+1]-dP[i+1]) + Math.abs(dA[i+2]-dP[i+2]);
-                        
                         if (diff > sensitivity) {
                             dOut[i]=paintSource[i]; dOut[i+1]=paintSource[i+1]; dOut[i+2]=paintSource[i+2];
                         } else {
@@ -975,20 +1011,12 @@
                     const src1 = dA;
                     const src2 = frameB ? frameB.data : dA;
                     
-                    // In Luma Wipe:
-                    // A->B: A is base, B is revealed by luma.
-                    // B->A: B is base, A is revealed.
-                    
                     const base = dir ? src2 : src1;
                     const reveal = dir ? src1 : src2;
                     
-                    // We use A's luma map for consistency? Or Base's luma map?
-                    // Let's use Base's luma map to wipe itself away.
-                    
                     for (let i=0; i<dA.length; i+=4) {
                         const luma = (base[i]+base[i+1]+base[i+2])/3;
-                        let showReveal = luma < thresh; // Reveal if dark? Or Light?
-                        // Let's say Threshold is "Progress".
+                        let showReveal = luma < thresh; 
                         
                         if(showReveal) { 
                             dOut[i]=reveal[i]; dOut[i+1]=reveal[i+1]; dOut[i+2]=reveal[i+2]; 
